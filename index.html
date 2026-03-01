@@ -1,577 +1,66 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Vogelwaarnemingen App met Vogelatlas Import</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 1em; background: #f9f9f9; }
-  h1, h2, h3 { color: #2c3e50; }
-  input, select, textarea, button { font-size: 1em; margin: 0.3em 0; padding: 0.4em; width: 100%; max-width: 400px; box-sizing: border-box; }
-  label { font-weight: bold; margin-top: 1em; display: block; }
-  .btn { background: #27ae60; color: white; border: none; cursor: pointer; padding: 0.7em; }
-  .btn:hover { background: #219150; }
-  .list-item { background: white; margin-bottom: 0.5em; padding: 0.5em; border-radius: 4px; box-shadow: 0 1px 2px #ccc; }
-  .flex-row { display: flex; flex-wrap: wrap; gap: 0.5em; }
-  .flex-row > * { flex: 1 1 150px; }
-  .small-input { max-width: 100px; }
-  .section { background: white; padding: 1em; margin-bottom: 1em; border-radius: 6px; box-shadow: 0 1px 5px #ddd; }
-  .footer { font-size: 0.8em; color: #666; margin-top: 2em; }
-  ol { padding-left: 1.2em; }
-  .toggle-header { cursor: pointer; background: #eee; padding: 0.5em; border-radius: 4px; margin-bottom: 0.5em; }
-  .toggle-content { display: none; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VogelSpotter Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
-
-<h1>Vogelwaarnemingen App</h1>
-
-<div class="section" id="input-section">
-  <h2>Waarneming invoeren</h2>
-  <label for="soort-select">Vogelsoort</label>
-  <input list="soorten-list" id="soort-select" autocomplete="off" placeholder="Typ of kies een soort..." />
-  <datalist id="soorten-list"></datalist>
-  <div id="status-info" style="font-style: italic; color: gray; margin-top: 0.2em;"></div>
-  
-  <label for="WetSchap-input">Wetenschappelijke naam</label>
-  <input type="text" id="WetSchap-input" placeholder="Wetenschappelijke naam (optioneel)" />
-  
-  <label for="aantal-input">Aantal</label>
-  <input type="number" id="aantal-input" value="1" min="1" class="small-input" />
-
-  <label for="notities-input">Notities</label>
-  <textarea id="notities-input" rows="3" placeholder="Eventuele opmerkingen... (optioneel)"></textarea>
-
-  <div>
-    <strong>GPS-locatie:</strong> <span id="gps-coords">Niet opgehaald</span><br/>
-    <strong>Locatietag:</strong> <span id="locatietag">Geen</span>
-  </div>
-
-  <button id="btn-save" class="btn">Opslaan waarneming</button>
-</div>
-
-<div class="section" id="import-soorten-section">
-  <h2>Soortenlijst importeren</h2>
-  <input type="file" id="input-import-soorten" accept=".json" />
-</div>
-
-<div class="section" id="locatetag-section">
-  <h2>Locatietags beheren</h2>
-  <input type="text" id="loc-tag-name" placeholder="Nieuwe locatietag naam (optioneel)" />
-  <button id="btn-add-tag" class="btn">➕ Voeg locatietag toe op huidige locatie</button>
-
-  <div id="loc-tag-list"></div>
-</div>
-
-<div class="section" id="filter-section">
-  <h2>Filters & Overzicht</h2>
-  <label for="filter-date">Datum filter (yyyy-mm-dd)</label>
-  <input type="date" id="filter-date" />
-
-  <label for="filter-tag">Locatietag filter</label>
-  <input type="text" id="filter-tag" placeholder="Locatietag naam" />
-
-  <label for="filter-soort">Soort filter</label>
-  <input type="text" id="filter-soort" placeholder="Deel van soortnaam" />
-
-  <button id="btn-clear-filters" class="btn" style="background:#c0392b;">Filters wissen</button>
-
-<div class="section">
-  <div class="toggle-header" onclick="toggleVisibility('waarnemingen-content')">
-    <h2 style="margin: 0;">Waarnemingen ⬇️</h2>
-  </div>
-  <div id="waarnemingen-content" class="toggle-content">
-    <h3>Waarnemingen</h3>
-    <div id="waarnemingen-list"></div>
-  </div>
-</div>
-</div>
-
-<div class="section">
-  <div class="toggle-header" onclick="toggleVisibility('lifelist-content')">
-    <h2 style="margin: 0;">Lifelist ⬇️</h2>
-  </div>
-  <div id="lifelist-content" class="toggle-content">
-    <div id="lifelist"></div>
-  </div>
-</div>
-
-<div class="section">
-  <div class="toggle-header" onclick="toggleVisibility('statistieken-content')">
-    <h2 style="margin: 0;">Statistieken ⬇️</h2>
-  </div>
-  <div id="statistieken-content" class="toggle-content">
-    <div id="statistieken"></div>
-  </div>
-</div>
-
-<div class="section" id="backup-section">
-  <h2>Back-up & Herstel</h2>
-  <button id="btn-export-json" class="btn">Exporteren naar JSON</button>
-  <button id="btn-export-csv" class="btn">Exporteren naar CSV</button>
-  <br/><br/>
-  <label for="input-import-json">Importeer JSON-bestand waarnemingen</label>
-  <input type="file" id="input-import-json" accept=".json" />
-</div>
-
-<div class="footer">
-  &copy; 2025 Vogelwaarnemingen App
-</div>
-
-<script>
-const wachtwoord = "mijngeheim";  // zet hier je eigen wachtwoord
-
-function checkWachtwoord() {
-  const invoer = prompt("Voer het wachtwoord in om de app te openen:");
-  if (invoer !== wachtwoord) {
-    alert("Onjuist wachtwoord! Toegang geweigerd.");
-    // Blokkeer door pagina te verbergen of te redirecten
-    document.body.innerHTML = "<h2>Toegang geweigerd</h2>";
-    throw new Error("Toegang geweigerd");
-  }
-}
-
-checkWachtwoord();
-"use strict";
-
-const DB_NAME = "VogelWaarnemingenDB";
-const DB_VERSION = 2; // verhoogd door soorten store toevoeging
-const STORE_WAARNEMINGEN = "waarnemingen";
-const STORE_TAGS = "tags";
-const STORE_SOORTEN = "soorten";
-
-let db;
-
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      db = request.result;
-      resolve(db);
-    };
-    request.onupgradeneeded = (e) => {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_WAARNEMINGEN)) {
-        db.createObjectStore(STORE_WAARNEMINGEN, { keyPath: "id", autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains(STORE_TAGS)) {
-        db.createObjectStore(STORE_TAGS, { keyPath: "naam" });
-      }
-      if (!db.objectStoreNames.contains(STORE_SOORTEN)) {
-        db.createObjectStore(STORE_SOORTEN, { keyPath: "naam" });
-      }
-    };
-  });
-}
-
-function addWaarneming(data) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_WAARNEMINGEN, "readwrite");
-    const store = tx.objectStore(STORE_WAARNEMINGEN);
-    const req = store.add(data);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function getAllWaarnemingen() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_WAARNEMINGEN, "readonly");
-    const store = tx.objectStore(STORE_WAARNEMINGEN);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function addTag(data) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_TAGS, "readwrite");
-    const store = tx.objectStore(STORE_TAGS);
-    const req = store.put(data);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function getAllTags() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_TAGS, "readonly");
-    const store = tx.objectStore(STORE_TAGS);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function deleteTag(naam) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_TAGS, "readwrite");
-    const store = tx.objectStore(STORE_TAGS);
-    const req = store.delete(naam);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function addSoorten(soorten) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_SOORTEN, "readwrite");
-    const store = tx.objectStore(STORE_SOORTEN);
-    let count = 0;
-    soorten.forEach((soort) => {
-      store.put(soort).onsuccess = () => {
-        count++;
-        if (count === soorten.length) resolve();
-      };
-    });
-  });
-}
-
-function getAllSoorten() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_SOORTEN, "readonly");
-    const store = tx.objectStore(STORE_SOORTEN);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function toggleVisibility(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = el.style.display === "none" || el.style.display === "" ? "block" : "none";
-}
-
-// UI refs
-const soortInput = document.getElementById("soort-select");
-const WetSchapInput = document.getElementById("WetSchap-input");
-const aantalInput = document.getElementById("aantal-input");
-const notitiesInput = document.getElementById("notities-input");
-const gpsCoordsSpan = document.getElementById("gps-coords");
-const locatietagSpan = document.getElementById("locatietag");
-const btnSave = document.getElementById("btn-save");
-
-const inputImportSoorten = document.getElementById("input-import-soorten");
-
-const locTagNameInput = document.getElementById("loc-tag-name");
-const btnAddTag = document.getElementById("btn-add-tag");
-const locTagListDiv = document.getElementById("loc-tag-list");
-
-const filterDateInput = document.getElementById("filter-date");
-	filterDateInput.addEventListener("input", refreshWaarnemingen);
-const filterTagInput = document.getElementById("filter-tag");
-	filterTagInput.addEventListener("input", refreshWaarnemingen);
-const filterSoortInput = document.getElementById("filter-soort");
-	filterSoortInput.addEventListener("input", refreshWaarnemingen);
-const btnClearFilters = document.getElementById("btn-clear-filters");
-
-const waarnemingenListDiv = document.getElementById("waarnemingen-list");
-const lifelistDiv = document.getElementById("lifelist");
-const statistiekenDiv = document.getElementById("statistieken");
-
-const btnExportJSON = document.getElementById("btn-export-json");
-const btnExportCSV = document.getElementById("btn-export-csv");
-const inputImportJSON = document.getElementById("input-import-json");
-
-let huidigeGPS = null;
-let huidigeLocatieTag = null;
-
-async function vulSoortenDatalist() {
-  const soorten = await getAllSoorten();
-  const datalist = document.getElementById("soorten-list");
-  datalist.innerHTML = "";
-  soorten.forEach((v) => {
-    const opt = document.createElement("option");
-    opt.value = v.naam;
-    datalist.appendChild(opt);
-  });
-}
-
-async function updateWetSchapNaam() {
-  const soort = soortInput.value.trim();
-  const statusInfoDiv = document.getElementById("status-info");
-  if (!soort) {
-    WetSchapInput.value = "";
-    statusInfoDiv.textContent = "";
-    return;
-  }
-  const soorten = await getAllSoorten();
-  const gevonden = soorten.find((v) => v.naam.toLowerCase() === soort.toLowerCase());
-  WetSchapInput.value = gevonden ? gevonden.WetSchap : "";
-  statusInfoDiv.textContent = gevonden && gevonden.status ? `Status: ${gevonden.status}` : "";
-}
-
-
-soortInput.addEventListener("input", updateWetSchapNaam);
-
-function updateGPS() {
-  if (!navigator.geolocation) {
-    gpsCoordsSpan.textContent = "GPS niet beschikbaar";
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      huidigeGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      gpsCoordsSpan.textContent =
-        huidigeGPS.lat.toFixed(5) + ", " + huidigeGPS.lng.toFixed(5);
-      checkLocatieTag();
-    },
-    () => {
-      gpsCoordsSpan.textContent = "GPS toegang geweigerd";
-    }
-  );
-}
-
-async function checkLocatieTag() {
-  const tags = await getAllTags();
-  if (!huidigeGPS) {
-    huidigeLocatieTag = null;
-    locatietagSpan.textContent = "Geen";
-    return;
-  }
-  const maxAfstand = 0.0009; // ~100m in graden
-  let gevondenTag = null;
-  for (const tag of tags) {
-    const dist = Math.sqrt(
-      Math.pow(tag.lat - huidigeGPS.lat, 2) + Math.pow(tag.lng - huidigeGPS.lng, 2)
-    );
-    if (dist < maxAfstand) {
-      gevondenTag = tag.naam;
-      break;
-    }
-  }
-  huidigeLocatieTag = gevondenTag;
-  locatietagSpan.textContent = gevondenTag || "Geen";
-}
-
-btnSave.addEventListener("click", async () => {
-  if (!soortInput.value.trim()) {
-    alert("Vul minimaal een vogelsoort in.");
-    return;
-  }
-  const waarneming = {
-    soort: soortInput.value.trim(),
-    WetSchap: WetSchapInput.value.trim() || "",
-    aantal: aantalInput.value ? parseInt(aantalInput.value) : 1,
-    notities: notitiesInput.value.trim() || "",
-    datum: new Date().toISOString(),
-    gps: huidigeGPS,
-    locatieTag: huidigeLocatieTag,
-  };
-  await addWaarneming(waarneming);
-  alert("Waarneming opgeslagen!");
-  await refreshWaarnemingen();
-  soortInput.value = "";
-  WetSchapInput.value = "";
-  aantalInput.value = 1;
-  notitiesInput.value = "";
-});
-
-btnAddTag.addEventListener("click", async () => {
-  if (!huidigeGPS) {
-    alert("GPS-locatie niet beschikbaar, kan geen tag toevoegen.");
-    return;
-  }
-  const naam = locTagNameInput.value.trim() || "Tag " + Date.now();
-  await addTag({ naam, lat: huidigeGPS.lat, lng: huidigeGPS.lng });
-  locTagNameInput.value = "";
-  await refreshTags();
-  await checkLocatieTag();
-});
-
-async function refreshTags() {
-  const tags = await getAllTags();
-  locTagListDiv.innerHTML = "";
-  tags.forEach((tag) => {
-    const div = document.createElement("div");
-    div.className = "list-item flex-row";
-    div.textContent = `${tag.naam} (${tag.lat.toFixed(5)}, ${tag.lng.toFixed(5)})`;
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "❌";
-    delBtn.className = "btn";
-    delBtn.style.background = "#c0392b";
-    delBtn.style.flex = "0 0 40px";
-    delBtn.onclick = async () => {
-      if (confirm(`Weet je zeker dat je tag "${tag.naam}" wilt verwijderen?`)) {
-        await deleteTag(tag.naam);
-        await refreshTags();
-        await checkLocatieTag();
-      }
-    };
-    div.appendChild(delBtn);
-    locTagListDiv.appendChild(div);
-  });
-}
-
-async function refreshWaarnemingen() {
-  const waarnemingen = await getAllWaarnemingen();
-
-  // Filters
-  const datumFilter = filterDateInput.value;
-  const tagFilter = filterTagInput.value.toLowerCase();
-  const soortFilter = filterSoortInput.value.toLowerCase();
-
-  const gefilterd = waarnemingen.filter((w) => {
-    let ok = true;
-    if (datumFilter) {
-      ok = ok && w.datum.startsWith(datumFilter);
-    }
-    if (tagFilter) {
-      ok = ok && w.locatieTag && w.locatieTag.toLowerCase().includes(tagFilter);
-    }
-    if (soortFilter) {
-      ok = ok && w.soort.toLowerCase().includes(soortFilter);
-    }
-    return ok;
-  });
-
-  // Toon waarnemingen
-  waarnemingenListDiv.innerHTML = "";
-const soorten = await getAllSoorten();
-
-gefilterd.forEach((w) => {
-  const soortData = soorten.find((s) => s.naam.toLowerCase() === w.soort.toLowerCase());
-  const status = soortData && soortData.status ? soortData.status : "Onbekend";
-
-  const div = document.createElement("div");
-  div.className = "list-item";
-  div.innerHTML = `<strong>${w.soort}</strong> (${w.WetSchap}) - ${w.aantal}x<br>
-  Status: ${status}<br>
-  GPS: ${
-    w.gps ? w.gps.lat.toFixed(5) + ", " + w.gps.lng.toFixed(5) : "Geen"
-  }<br>
-  Locatietag: ${w.locatieTag || "Geen"}<br>
-  Datum/tijd: ${new Date(w.datum).toLocaleString()}<br>
-  Notities: ${w.notities || "-"}`;
-  waarnemingenListDiv.appendChild(div);
-});
-
-
-  // Lifelist apart genummerd
-  const uniekeSoorten = [...new Set(waarnemingen.map((w) => w.soort))];
-  lifelistDiv.innerHTML =
-    "<h3>Lifelist</h3><ol>" +
-    uniekeSoorten.map((soort) => `<li>${soort}</li>`).join("") +
-    "</ol>";
-
-  // Statistieken apart
-  const stats = uniekeSoorten.map((soort) => {
-    const totaal = waarnemingen
-      .filter((w) => w.soort === soort)
-      .reduce((a, w) => a + (w.aantal || 1), 0);
-    return `<div>${soort}: ${totaal} vogels</div>`;
-  });
-  statistiekenDiv.innerHTML = "<h3>Statistieken</h3>" + stats.join("");
-}
-
-btnClearFilters.addEventListener("click", () => {
-  filterDateInput.value = "";
-  filterTagInput.value = "";
-  filterSoortInput.value = "";
-  refreshWaarnemingen();
-});
-
-// Import soortenlijst uit JSON bestand
-inputImportSoorten.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return alert("Geen bestand geselecteerd");
-  const tekst = await file.text();
-  try {
-    const soorten = JSON.parse(tekst);
-    if (!Array.isArray(soorten)) throw "Fout formaat";
-    await addSoorten(soorten);
-    alert("Soortenlijst succesvol geïmporteerd!");
-    await vulSoortenDatalist();
-  } catch (err) {
-    alert("Fout bij importeren soortenlijst: " + err);
-  }
-  e.target.value = "";
-});
-
-// Export waarnemingen naar JSON
-btnExportJSON.addEventListener("click", async () => {
-  const waarnemingen = await getAllWaarnemingen();
-  const blob = new Blob([JSON.stringify(waarnemingen, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "waarnemingen_backup.json";
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// Export waarnemingen naar CSV
-btnExportCSV.addEventListener("click", async () => {
-  const waarnemingen = await getAllWaarnemingen();
-  if (waarnemingen.length === 0) return alert("Geen waarnemingen om te exporteren.");
-
-  const headers = [
-    "soort",
-    "WetSchap",
-    "aantal",
-    "notities",
-    "datum",
-    "gps_lat",
-    "gps_lng",
-    "locatieTag",
-  ];
-  const csvRows = [headers.join(",")];
-  waarnemingen.forEach((w) => {
-    const row = [
-      `"${w.soort.replace(/"/g, '""')}"`,
-      `"${(w.WetSchap || "").replace(/"/g, '""')}"`,
-      w.aantal || 1,
-      `"${(w.notities || "").replace(/"/g, '""')}"`,
-      w.datum,
-      w.gps ? w.gps.lat : "",
-      w.gps ? w.gps.lng : "",
-      `"${(w.locatieTag || "").replace(/"/g, '""')}"`,
-    ];
-    csvRows.push(row.join(","));
-  });
-
-  const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "waarnemingen_export.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// Import waarnemingen vanuit JSON
-inputImportJSON.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return alert("Geen bestand geselecteerd");
-  const tekst = await file.text();
-  try {
-    const waarnemingen = JSON.parse(tekst);
-    if (!Array.isArray(waarnemingen)) throw "Fout formaat";
-    for (const w of waarnemingen) {
-      await addWaarneming(w);
-    }
-    alert("Waarnemingen succesvol geïmporteerd!");
-    await refreshWaarnemingen();
-  } catch (err) {
-    alert("Fout bij importeren waarnemingen: " + err);
-  }
-  e.target.value = "";
-});
-
-(async () => {
-  await openDatabase();
-  await vulSoortenDatalist();
-  updateGPS();
-  await refreshTags();
-  await refreshWaarnemingen();
-  setInterval(updateGPS, 60000);
-})();
-</script>
-
+    <header>
+        <h1>🐦 VogelSpotter</h1>
+        <div id="gps-indicator">📍 GPS zoeken...</div>
+    </header>
+
+    <main>
+        <details open class="section-card">
+            <summary><h2>Nieuwe Waarneming</h2></summary>
+            <form id="obsForm">
+                <div class="input-group">
+                    <label>Vogelsoort</label>
+                    <input type="text" id="speciesInput" list="vogelLijst" placeholder="Typ soortnaam..." required>
+                    <datalist id="vogelLijst"></datalist>
+                </div>
+                <div class="input-group">
+                    <label>Wetenschappelijke naam</label>
+                    <input type="text" id="latinInput" placeholder="Automatisch via lijst...">
+                </div>
+                <div class="row">
+                    <div class="input-group">
+                        <label>Aantal</label>
+                        <input type="number" id="countInput" value="1" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Locatietag</label>
+                        <input type="text" id="tagInput" placeholder="Bijv. Hut 1">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Notities</label>
+                    <textarea id="noteInput" rows="2"></textarea>
+                </div>
+                <button type="submit" id="saveBtn">OPSLAAN OP TELEFOON 💾</button>
+            </form>
+        </details>
+
+        <details class="section-card">
+            <summary><h2>Statistieken & Lifelist</h2></summary>
+            <div class="stats-grid">
+                <div class="stat-item"><span class="stat-label">Soorten</span><span id="totalSpecies" class="stat-value">0</span></div>
+                <div class="stat-item"><span class="stat-label">Vogels</span><span id="totalBirds" class="stat-value">0</span></div>
+            </div>
+            <ul id="lifelist" class="scroll-list"></ul>
+        </details>
+
+        <section class="section-card">
+            <div class="header-row">
+                <h2>Waarnemingen</h2>
+                <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
+            </div>
+            <div id="obsList"></div>
+        </section>
+    </main>
+    <script src="app.js"></script>
 </body>
 </html>
