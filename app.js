@@ -35,18 +35,37 @@ function startGPS() {
                 accuracy: p.coords.accuracy 
             };
             
-            // Toon status en nauwkeurigheid (handig voor testen)
             const meterNauwkeurig = Math.round(p.coords.accuracy);
             document.getElementById('gps-indicator').innerText = `📍 GPS OK (±${meterNauwkeurig}m)`;
 
-            // Automatische Tag herkenning
-            checkNearbyTags();
+            // --- DE FIX: Directe herkenning ---
+            if (locationTags.length > 0) {
+                const tagInput = document.getElementById('tagInput');
+                
+                // Zoek dichtstbijzijnde tag
+                let dichtstbij = null;
+                let minAfstand = 0.2; // We verhogen de straal naar 200 meter voor de zekerheid
+
+                locationTags.forEach(tag => {
+                    const d = berekenAfstand(currentCoords, tag);
+                    if (d < minAfstand) {
+                        minAfstand = d;
+                        dichtstbij = tag;
+                    }
+                });
+
+                if (dichtstbij && tagInput.value === "") {
+                    tagInput.value = dichtstbij.name;
+                    tagInput.classList.add('tag-detected'); // Gebruik de CSS class
+                    console.log("Tag automatisch ingevuld: " + dichtstbij.name);
+                }
+            }
             
         }, err => {
             document.getElementById('gps-indicator').innerText = "📍 GPS Fout: " + err.message;
         }, { 
             enableHighAccuracy: true, 
-            timeout: 10000, 
+            timeout: 5000, 
             maximumAge: 0 
         });
     }
