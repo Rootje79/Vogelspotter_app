@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "JOUW_WEB_APP_URL_HIER";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhghDGxZVExNW8TIZ2qzMqHFK3tEVFFblg6ODEp4Juel9g1AT3vf541-gcDmN8qqNeeA/exec";
 let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let locationTags = JSON.parse(localStorage.getItem('locationTags')) || [];
 let vogelAtlas = [];
