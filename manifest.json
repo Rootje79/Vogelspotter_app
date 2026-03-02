@@ -1,9 +1,18 @@
 {
   "name": "VogelSpotter Rolinda",
   "short_name": "VogelSpotter",
+  "description": "Persoonlijk vogelwaarnemingen logboek",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#2d5a27",
   "theme_color": "#2d5a27",
-  "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3039/3039527.png", "sizes": "512x512", "type": "image/png" }]
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "vogelspotter-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
