@@ -231,45 +231,67 @@ function exportData() {
 function importData() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = 'application/json'; // Alleen JSON bestanden
     input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
         const reader = new FileReader();
         reader.onload = ev => {
             try {
-                const geimporteerdeData = JSON.parse(ev.target.result);
+                let geimporteerdeData = JSON.parse(ev.target.result);
                 
-                // Zorg dat elke waarneming een uniek ID en een datum heeft
+                // Als de import geen lijst (array) is, maken we er een lijst van
+                if (!Array.isArray(geimporteerdeData)) {
+                    geimporteerdeData = [geimporteerdeData];
+                }
+
+                console.log("Start import van", geimporteerdeData.length, "items");
+
                 const opgeschoondeData = geimporteerdeData.map((item, index) => {
-                    // Als ID ontbreekt of 0 is, maak een nieuwe: Tijd + index + random
-                    if (!item.id || item.id === 0) {
-                        item.id = Date.now() + index + Math.floor(Math.random() * 1000);
-                    }
+                    // 1. Genereer een uniek ID (Tijd + index + random)
+                    // We overschrijven het ID ALTIJD bij import om zeker te zijn dat het uniek is
+                    const nieuwId = Date.now() + index + Math.floor(Math.random() * 1000);
                     
-                    // Als isoDate ontbreekt, probeer deze te herleiden of pak 'nu'
-                    if (!item.isoDate) {
-                        item.isoDate = item.timestamp ? 
-                            parseOldTimestamp(item.timestamp).toISOString() : 
-                            new Date().toISOString();
+                    // 2. Datum herstellen voor de statistieken
+                    let d = new Date(); // standaard nu
+                    if (item.isoDate) {
+                        d = new Date(item.isoDate);
+                    } else if (item.timestamp) {
+                        d = parseOldTimestamp(item.timestamp);
                     }
-                    
-                    return item;
+
+                    // 3. De 'nieuwe' vogel opbouwen met alle nodige velden
+                    return {
+                        id: nieuwId,
+                        species: item.species || "Onbekende soort",
+                        latin: item.latin || "",
+                        status: item.status || "",
+                        count: item.count || 1,
+                        methode: item.methode || "Gezien",
+                        tag: item.tag || "Import",
+                        notes: item.notes || "",
+                        coords: item.coords || { lat: 52.13, lon: 5.29 },
+                        synced: false, // Zet op false zodat ze naar de sheet kunnen
+                        timestamp: d.toLocaleString('nl-NL'),
+                        isoDate: d.toISOString()
+                    };
                 });
 
-                // Voeg toe aan bestaande waarnemingen (voorkom dubbelen op basis van ID)
-                const bestaandeIds = new Set(observations.map(o => o.id));
-                const nieuweItems = opgeschoondeData.filter(item => !bestaandeIds.has(item.id));
+                // Voeg de nieuwe items toe aan het begin van je huidige lijst
+                observations = [...opgeschoondeData, ...observations];
                 
-                observations = [...nieuweItems, ...observations];
-                
+                // Opslaan en scherm verversen
                 localStorage.setItem('birdObs', JSON.stringify(observations));
                 renderObservations();
-                alert(`${nieuweItems.length} nieuwe waarnemingen toegevoegd!`);
-            } catch (fout) {
-                alert("Fout bij importeren: Ongeldig bestand.");
-                console.error(fout);
+                
+                alert(`Succes! ${opgeschoondeData.length} waarnemingen toegevoegd.`);
+            } catch (err) {
+                console.error("Import fout:", err);
+                alert("Het bestand kon niet gelezen worden. Is het wel een geldig JSON bestand?");
             }
         };
-        reader.readAsText(e.target.files[0]);
+        reader.readAsText(file);
     };
     input.click();
 }
