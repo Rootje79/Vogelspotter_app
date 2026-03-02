@@ -110,12 +110,15 @@ document.getElementById('obsForm').addEventListener('submit', (e) => {
 });
 
 // 4. Filtering & Rendering
-function setFilter(f) {
-    currentFilter = f;
+function toggleFilter(f) {
+    huidigeFilter = f; // Zorg dat deze variabele bovenaan in je app.js staat
+    
+    // Update de knoppen (visueel)
     document.querySelectorAll('.filter-bar button').forEach(b => b.classList.remove('active'));
     if(f === 'alles') document.getElementById('btnAll').classList.add('active');
     if(f === 'vandaag') document.getElementById('btnToday').classList.add('active');
     if(f === 'pending') document.getElementById('btnPending').classList.add('active');
+    
     renderObservations();
 }
 
