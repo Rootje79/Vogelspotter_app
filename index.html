@@ -104,14 +104,12 @@
         
 <section class="section-card" style="background: #f9f9f9; border: 1px dashed #ccc;">
     <h3 style="margin-top:0; font-size: 0.9rem;">App Data Overzetten</h3>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-        <button onclick="exporteerData()" style="background:#666; color:white; border:none; padding:12px; border-radius:8px; font-size:0.8rem; font-weight:bold;">📥 Download Back-up</button>
-        
-        <div style="border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: white;">
-            <label style="font-size: 0.7rem; color: #666; margin-bottom: 5px;">📤 Upload Back-up (.json):</label>
-            <input type="file" id="importFile" accept=".json" style="font-size: 0.8rem; width: 100%;">
-            <button onclick="verwerkImport()" style="margin-top: 10px; width: 100%; background: var(--accent); color: white; border: none; padding: 8px; border-radius: 5px; font-size: 0.8rem;">Start Import</button>
-        </div>
+    <button onclick="exporteerData()" style="width:100%; background:#666; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; margin-bottom:10px;">📥 Download Back-up</button>
+    
+    <div style="background:white; padding:10px; border-radius:8px; border:1px solid #ddd;">
+        <label style="font-size:0.7rem; display:block; margin-bottom:5px;">Upload .json bestand:</label>
+        <input type="file" id="importFile" accept=".json">
+        <button id="importBtn" style="margin-top:10px; width:100%; background:var(--accent); color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">START IMPORT</button>
     </div>
 </section>
     
@@ -120,5 +118,6 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
