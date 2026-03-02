@@ -1,0 +1,34 @@
+:root { --primary: #2d5a27; --bg: #f4f7f1; --white: #ffffff; --accent: #007bff; }
+* { box-sizing: border-box; font-family: -apple-system, sans-serif; }
+body { margin: 0; background: var(--bg); padding-bottom: 90px; color: #333; }
+header { background: var(--primary); color: white; padding: 15px; text-align: center; }
+
+main { padding: 10px; max-width: 600px; margin: auto; }
+.section-card { background: var(--white); border-radius: 12px; margin-bottom: 12px; padding: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+summary { font-weight: bold; cursor: pointer; }
+
+.input-group { margin-bottom: 10px; }
+label { display: block; font-size: 0.75rem; color: #666; margin-bottom: 3px; font-weight: bold; }
+input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+.row { display: flex; gap: 8px; }
+
+#saveBtn { position: fixed; bottom: 15px; left: 15px; right: 15px; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-weight: bold; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-item { padding: 12px; border-radius: 10px; text-align: center; }
+.stat-label { display: block; font-size: 0.7rem; font-weight: 600; color: #444; text-transform: uppercase; }
+.stat-value { font-size: 1.6rem; font-weight: 800; }
+
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+#syncBtn { background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; }
+
+.filter-bar { display: flex; gap: 5px; margin-bottom: 10px; }
+.filter-bar button { flex: 1; padding: 10px 2px; border-radius: 8px; border: 1px solid var(--primary); background: white; color: var(--primary); font-size: 0.7rem; font-weight: bold; }
+.filter-bar button.active { background: var(--primary); color: white; }
+
+.card { background: #fff; border-left: 5px solid #ccc; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; border: 1px solid #eee; }
+.card.pending { border-left-color: #ffc107; }
+.card.synced { border-left-color: #28a745; }
+.tag-detected { background-color: #e8f0e6 !important; }
+
+.delete-btn { background: #fee; color: #d32f2f; border: none; padding: 8px; border-radius: 6px; }
