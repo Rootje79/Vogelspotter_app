@@ -208,26 +208,35 @@ function exporteerData() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `vogelspotter_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); // Chrome fix
     a.click();
+    document.body.removeChild(a); // Chrome fix
     URL.revokeObjectURL(url);
 }
 
-function importeerData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+function verwerkImport() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert("Selecteer eerst een bestand.");
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const data = JSON.parse(e.target.result);
             if (Array.isArray(data.obs) && Array.isArray(data.tags)) {
-                if (confirm(`Weet je het zeker? Dit voegt ${data.obs.length} waarnemingen en ${data.tags.length} locaties toe aan je huidige lijst.`)) {
-                    // We voegen het samen in plaats van overschrijven voor de veiligheid
+                if (confirm(`Weet je het zeker? Dit voegt ${data.obs.length} waarnemingen en ${data.tags.length} locaties toe.`)) {
+                    
+                    // Samenvoegen
                     observations = [...observations, ...data.obs];
                     locationTags = [...locationTags, ...data.tags];
                     
-                    // Dubbele ID's eruit filteren (voor het geval je dezelfde backup twee keer laadt)
+                    // Dubbele ID's verwijderen
                     observations = observations.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                    locationTags = locationTags.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
                     
                     localStorage.setItem('birdObs', JSON.stringify(observations));
                     localStorage.setItem('locationTags', JSON.stringify(locationTags));
@@ -236,10 +245,10 @@ function importeerData(event) {
                     location.reload(); 
                 }
             } else {
-                alert("Ongeldig back-up bestand.");
+                alert("Bestand wordt niet herkend als vogel-backup.");
             }
         } catch (err) {
-            alert("Fout bij het lezen van het bestand.");
+            alert("Fout bij het laden van het JSON-bestand.");
         }
     };
     reader.readAsText(file);
