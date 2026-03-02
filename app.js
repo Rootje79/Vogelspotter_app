@@ -196,62 +196,62 @@ function verwijderWaarneming(id) {
     }
 }
 
-// --- EXPORT & IMPORT LOGICA ---
-
+// --- EXPORT & IMPORT (CHROME PROOF) ---
 function exporteerData() {
-    const data = {
-        obs: observations,
-        tags: locationTags
-    };
-    const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vogelspotter_backup_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a); // Chrome fix
-    a.click();
-    document.body.removeChild(a); // Chrome fix
-    URL.revokeObjectURL(url);
-}
-
-function verwerkImport() {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        alert("Selecteer eerst een bestand.");
-        return;
+    try {
+        const data = { obs: observations, tags: locationTags };
+        const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vogelspotter_backup_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert("Export mislukt: " + err.message);
     }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (Array.isArray(data.obs) && Array.isArray(data.tags)) {
-                if (confirm(`Weet je het zeker? Dit voegt ${data.obs.length} waarnemingen en ${data.tags.length} locaties toe.`)) {
-                    
-                    // Samenvoegen
-                    observations = [...observations, ...data.obs];
-                    locationTags = [...locationTags, ...data.tags];
-                    
-                    // Dubbele ID's verwijderen
-                    observations = observations.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                    locationTags = locationTags.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-                    
-                    localStorage.setItem('birdObs', JSON.stringify(observations));
-                    localStorage.setItem('locationTags', JSON.stringify(locationTags));
-                    
-                    alert("Import geslaagd!");
-                    location.reload(); 
-                }
-            } else {
-                alert("Bestand wordt niet herkend als vogel-backup.");
-            }
-        } catch (err) {
-            alert("Fout bij het laden van het JSON-bestand.");
-        }
-    };
-    reader.readAsText(file);
 }
+
+// Luister naar de import knop via de ID
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('importBtn');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Kies eerst een bestand via 'Bestand kiezen'.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.obs && data.tags) {
+                        if (confirm(`Bestand geladen! ${data.obs.length} waarnemingen toevoegen?`)) {
+                            observations = [...observations, ...data.obs];
+                            locationTags = [...locationTags, ...data.tags];
+                            
+                            // Dubbelen eruit op basis van unieke ID's
+                            observations = observations.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                            locationTags = locationTags.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+
+                            localStorage.setItem('birdObs', JSON.stringify(observations));
+                            localStorage.setItem('locationTags', JSON.stringify(locationTags));
+                            
+                            alert("Import gelukt!");
+                            window.location.reload();
+                        }
+                    } else { alert("Ongeldig bestand."); }
+                } catch (err) { alert("Fout bij verwerken: " + err.message); }
+            };
+            reader.readAsText(file);
+        });
+    }
+});
 
 init();
