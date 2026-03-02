@@ -30,9 +30,14 @@
                         <input type="number" id="countInput" value="1" min="1">
                     </div>
                     <div class="input-group">
-                        <label>Locatietag (Auto via GPS)</label>
+                        <label>Locatietag</label>
                         <input type="text" id="tagInput" placeholder="Bijv. Hut 1">
                     </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Datum & Tijd</label>
+                    <input type="datetime-local" id="manualTimestamp">
                 </div>
                 
                 <div class="input-group">
@@ -60,16 +65,38 @@
             </div>
         </section>
 
+        <details class="section-card">
+            <summary>📍 Locatie Beheer (Handmatig)</summary>
+            <div style="margin-top:10px;">
+                <div class="input-group">
+                    <label>Naam plek</label>
+                    <input type="text" id="manualTagName" placeholder="Bijv. Uitkijktoren">
+                </div>
+                <div class="row">
+                    <div class="input-group">
+                        <label>Lat</label>
+                        <input type="number" id="manualLat" step="any" placeholder="52.123">
+                    </div>
+                    <div class="input-group">
+                        <label>Lon</label>
+                        <input type="number" id="manualLon" step="any" placeholder="5.456">
+                    </div>
+                </div>
+                <button onclick="voegLocatieHandmatigToe()" class="secondary-btn">Locatie Toevoegen</button>
+                <div id="tagList" class="tag-list"></div>
+            </div>
+        </details>
+
         <section class="section-card">
             <div class="list-header">
-                <input type="text" id="searchObs" placeholder="Zoek in lijst..." oninput="renderObservations()">
+                <input type="text" id="searchObs" placeholder="Zoek..." oninput="renderObservations()">
                 <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
             </div>
 
             <div class="filter-bar">
-                <button id="btnAll" class="active" onclick="setFilter('alles')">Alles</button>
-                <button id="btnToday" onclick="setFilter('vandaag')">Vandaag</button>
-                <button id="btnPending" onclick="setFilter('pending')">Niet gesynct</button>
+                <button id="btnAll" onclick="toggleFilter('alles')">Alles</button>
+                <button id="btnToday" class="active" onclick="toggleFilter('vandaag')">Vandaag</button>
+                <button id="btnPending" onclick="toggleFilter('pending')">Niet gesynct</button>
             </div>
 
             <div id="obsList"></div>
