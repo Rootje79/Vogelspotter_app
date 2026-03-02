@@ -3,6 +3,7 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnbGfesd3_4n
 let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let vogelAtlas = [];
 let pickerMap, pickerMarker;
+let huidigeFilter = 'vandaag'; // Zorgt dat de app opent met de lijst van vandaag
 
 // --- INITIALISATIE ---
 async function init() {
@@ -121,18 +122,57 @@ function bewerkWaarneming(id) {
     document.getElementById('saveBtn').style.background = "#ffa000";
 }
 
+function setFilter(f) {
+    huidigeFilter = f;
+    // Update de kleuren van de knoppen
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`filter-${f}`).classList.add('active');
+    renderObservations();
+}
+
 function renderObservations() {
     const list = document.getElementById('obsList');
-    list.innerHTML = observations.map(o => `
+    if (!list) return;
+
+    // Pak de datum van vandaag in het juiste formaat om te vergelijken
+    const nuDatum = new Date().toLocaleDateString('nl-NL');
+    
+    // --- 1. STATISTIEKEN BEREKENEN ---
+    // Gebruik Set om unieke soorten te tellen (dubbele tellen niet mee voor de soortenlijst)
+    const totaalSoorten = new Set(observations.map(o => o.species)).size;
+    const vandaagSoorten = new Set(observations.filter(o => o.timestamp.includes(nuDatum)).map(o => o.species)).size;
+    const pendingCount = observations.filter(o => !o.synced).length;
+
+    // Update de cijfers in je nieuwe statistieken-bar
+    document.getElementById('statTotal').innerText = totaalSoorten;
+    document.getElementById('statToday').innerText = vandaagSoorten;
+    document.getElementById('statPending').innerText = pendingCount;
+
+    // --- 2. FILTEREN VAN DE LIJST ---
+    let gefilterd = observations;
+    if (huidigeFilter === 'vandaag') {
+        gefilterd = observations.filter(o => o.timestamp.includes(nuDatum));
+    } else if (huidigeFilter === 'pending') {
+        gefilterd = observations.filter(o => !o.synced);
+    }
+
+    // --- 3. TONEN VAN DE LIJST ---
+    if (gefilterd.length === 0) {
+        list.innerHTML = `<p style="text-align:center; color:#999; margin-top:20px; font-style:italic;">Geen waarnemingen in filter "${huidigeFilter}"</p>`;
+        return;
+    }
+
+    list.innerHTML = gefilterd.map(o => `
         <div class="card ${o.synced ? 'synced' : 'pending'}">
             <div style="flex:1">
                 <strong>${o.species} (${o.count}x)</strong><br>
                 <span class="latin-text">${o.latin || ''}</span><br>
-                <small>${o.timestamp} | ${o.methode} | ${o.status || ''}</small>
+                <small>${o.timestamp} | ${o.methode}</small><br>
+                <small style="color:#888; font-size:0.7rem;">${o.status || ''}</small>
             </div>
             <div style="display:flex; gap:10px;">
-                <button onclick="bewerkWaarneming(${o.id})" style="border:none; background:none; font-size:1.2rem;">✏️</button>
-                <button onclick="verwijder(${o.id})" class="delete-btn">🗑️</button>
+                <button onclick="bewerkWaarneming(${o.id})" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✏️</button>
+                <button onclick="verwijder(${o.id})" class="delete-btn" style="cursor:pointer;">🗑️</button>
             </div>
         </div>
     `).join('');
@@ -160,4 +200,10 @@ function verwijder(id) {
     }
 }
 
-init();
+init(async function init() {
+    await laadVogelLijst();
+    initMap();
+    startGPS();
+    renderObservations(); // Dit vult de statistieken en lijst direct bij het opstarten
+}
+    );
