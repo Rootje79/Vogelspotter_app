@@ -3,28 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VogelApp Ultimate</title>
+    <title>VogelApp V3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root { --primary: #2d5a27; --bg: #f4f7f4; }
         body { font-family: sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
-        .header { background: var(--primary); color: white; padding: 10px; text-align: center; position: sticky; top:0; z-index:1001; }
+        .header { background: var(--primary); color: white; padding: 10px; text-align: center; }
         .section-card { background: white; margin: 8px; padding: 12px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         label { display: block; font-weight: bold; font-size: 0.7rem; color: #555; margin-bottom: 3px; text-transform: uppercase; }
         input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem; margin-bottom: 10px; }
         #mapPicker { height: 200px; border-radius: 6px; border: 1px solid #ccc; }
         .btn { border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; }
         .btn-save { background: var(--primary); }
-        .btn-sync { background: #2196F3; margin-top: 5px; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; text-align: center; }
         .stat-item { background: #e8f5e9; padding: 5px; border-radius: 5px; }
         .stat-val { font-weight: bold; display: block; font-size: 1.1rem; color: var(--primary); }
         .stat-lbl { font-size: 0.55rem; color: #666; }
         .filter-bar { display: flex; gap: 4px; margin-top: 8px; }
-        .filter-btn { flex: 1; padding: 6px; font-size: 0.7rem; border-radius: 15px; border: 1px solid var(--primary); background: white; color: var(--primary); }
+        .filter-btn { flex: 1; padding: 6px; font-size: 0.7rem; border-radius: 15px; border: 1px solid var(--primary); background: white; color: var(--primary); cursor: pointer; }
         .filter-btn.active { background: var(--primary); color: white; }
-        .card { background: white; padding: 10px; margin: 8px; border-radius: 8px; border-left: 5px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+        .card { background: white; padding: 10px; margin: 8px; border-radius: 8px; border-left: 5px solid #ccc; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .card.pending { border-left-color: #ffa000; }
         .card.synced { border-left-color: #4caf50; }
         #mapContainer { display: none; margin-bottom: 10px; }
@@ -34,6 +33,7 @@
 
 <div class="header">
     <h3 style="margin:0;">🐦 Vogel Logboek</h3>
+    <div id="gps-status" style="font-size:0.6rem;">GPS zoeken...</div>
 </div>
 
 <div class="section-card stats-grid">
@@ -48,31 +48,31 @@
         <input type="hidden" id="editId"><input type="hidden" id="latinInput"><input type="hidden" id="statusInput">
         
         <label>Vogelsoort</label>
-        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required autocomplete="off">
+        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Naam..." required autocomplete="off">
         <datalist id="vogelLijst"></datalist>
-        <div id="speciesInfo" style="font-size:0.75rem; margin:-5px 0 10px 0; font-style:italic; color:var(--primary);"></div>
+        <div id="speciesInfo" style="font-size:0.75rem; margin:-5px 0 10px 0; font-style:italic; color:var(--primary); min-height:1em;"></div>
 
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>Aantal</label><input type="number" id="countInput" value="1"></div>
             <div style="flex:1;">
                 <label>Methode</label>
                 <div style="display:flex; gap:8px; padding-top:8px; font-size:0.8rem;">
-                    <label style="text-transform:none;"><input type="checkbox" id="checkGezien" checked> Gezien</label>
-                    <label style="text-transform:none;"><input type="checkbox" id="checkGehoord"> Gehoord</label>
+                    <label><input type="checkbox" id="checkGezien" checked> Gezien</label>
+                    <label><input type="checkbox" id="checkGehoord"> Gehoord</label>
                 </div>
             </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label>Locatie (GPS/Kaart)</label>
-            <button type="button" onclick="toggleKaart()" id="mapToggleBtn" style="font-size:0.6rem; padding:2px 5px;">🗺️ TOON KAART</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <label>Locatie</label>
+            <button type="button" onclick="toggleKaart()" id="mapToggleBtn" style="font-size:0.6rem;">🗺️ TOON KAART</button>
         </div>
         <div id="mapContainer"><div id="mapPicker"></div></div>
-        <div style="display:flex; gap:5px; margin-top:5px;">
-            <input type="text" id="latitude" readonly placeholder="Lat" style="background:#eee; font-size:0.75rem;">
-            <input type="text" id="longitude" readonly placeholder="Lon" style="background:#eee; font-size:0.75rem;">
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="latitude" readonly placeholder="Lat" style="background:#eee;">
+            <input type="text" id="longitude" readonly placeholder="Lon" style="background:#eee;">
         </div>
-        <input type="text" id="tagInput" placeholder="Locatietag (bijv. Gebied)">
+        <input type="text" id="tagInput" placeholder="Locatietag (automatisch...)">
         <textarea id="noteInput" placeholder="Notities..." rows="2"></textarea>
         
         <button type="submit" id="saveBtn" class="btn btn-save">OPSLAAN 💾</button>
@@ -80,18 +80,18 @@
 </div>
 
 <div class="section-card">
-    <input type="text" id="searchInput" placeholder="Zoek in waarnemingen..." oninput="renderObservations()">
+    <input type="text" id="searchInput" placeholder="Zoek soort of tag..." oninput="renderObservations()">
     <div class="filter-bar">
         <button onclick="setFilter('vandaag')" class="filter-btn active" id="filter-vandaag">Vandaag</button>
         <button onclick="setFilter('alles')" class="filter-btn" id="filter-alles">Alles</button>
-        <button onclick="setFilter('pending')" class="filter-btn" id="filter-pending">Wachtend</button>
+        <button onclick="setFilter('pending')" class="filter-btn" id="filter-pending">Sync</button>
     </div>
 </div>
 
 <div style="padding: 0 8px; display:flex; gap:5px;">
-    <button onclick="synchroniseerData()" class="btn btn-sync" style="flex:2;">SYNC SHEET ☁️</button>
-    <button onclick="exportData()" class="btn" style="flex:1; background:#666;">EXP</button>
-    <button onclick="importData()" class="btn" style="flex:1; background:#666;">IMP</button>
+    <button onclick="synchroniseerData()" class="btn" style="background:#2196F3; flex:2;">SYNC SHEET</button>
+    <button onclick="exportData()" class="btn" style="background:#666; flex:1;">EXP</button>
+    <button onclick="importData()" class="btn" style="background:#666; flex:1;">IMP</button>
 </div>
 
 <div id="obsList"></div>
