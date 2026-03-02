@@ -101,8 +101,20 @@
 
             <div id="obsList"></div>
         </section>
+        
+<section class="section-card" style="background: #f9f9f9; border: 1px dashed #ccc;">
+    <h3 style="margin-top:0; font-size: 0.9rem;">App Data Overzetten</h3>
+    <div style="display: flex; gap: 10px;">
+        <button onclick="exporteerData()" style="flex:1; background:#666; color:white; border:none; padding:10px; border-radius:8px; font-size:0.8rem;">📥 Download Back-up</button>
+        
+        <input type="file" id="importFile" onchange="importeerData(event)" style="display:none" accept=".json">
+        <button onclick="document.getElementById('importFile').click()" style="flex:1; background:#999; color:white; border:none; padding:10px; border-radius:8px; font-size:0.8rem;">📤 Upload Back-up</button>
+    </div>
+</section>
+    
     </main>
 
     <script src="app.js"></script>
 </body>
 </html>
+
