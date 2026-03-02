@@ -196,4 +196,53 @@ function verwijderWaarneming(id) {
     }
 }
 
+// --- EXPORT & IMPORT LOGICA ---
+
+function exporteerData() {
+    const data = {
+        obs: observations,
+        tags: locationTags
+    };
+    const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vogelspotter_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importeerData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (Array.isArray(data.obs) && Array.isArray(data.tags)) {
+                if (confirm(`Weet je het zeker? Dit voegt ${data.obs.length} waarnemingen en ${data.tags.length} locaties toe aan je huidige lijst.`)) {
+                    // We voegen het samen in plaats van overschrijven voor de veiligheid
+                    observations = [...observations, ...data.obs];
+                    locationTags = [...locationTags, ...data.tags];
+                    
+                    // Dubbele ID's eruit filteren (voor het geval je dezelfde backup twee keer laadt)
+                    observations = observations.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                    
+                    localStorage.setItem('birdObs', JSON.stringify(observations));
+                    localStorage.setItem('locationTags', JSON.stringify(locationTags));
+                    
+                    alert("Import geslaagd!");
+                    location.reload(); 
+                }
+            } else {
+                alert("Ongeldig back-up bestand.");
+            }
+        } catch (err) {
+            alert("Fout bij het lezen van het bestand.");
+        }
+    };
+    reader.readAsText(file);
+}
+
 init();
