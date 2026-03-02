@@ -6,148 +6,76 @@
     <title>VogelSpotter Pro</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-</head>
-<body>
-    <header><!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VogelSpotter Pro</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="vogelspotter-icon.png">
 </head>
 <body>
     <header>
         <h1>🐦 VogelSpotter</h1>
-        <div id="gps-indicator">📍 GPS zoeken...</div>
+        <div id="gps-indicator">📍 GPS initialiseren...</div>
     </header>
 
     <main>
-        <details open class="section-card">
-            <summary><h2>Nieuwe Waarneming</h2></summary>
+        <section class="section-card">
             <form id="obsForm">
                 <div class="input-group">
                     <label>Vogelsoort</label>
-                    <input type="text" id="speciesInput" list="vogelLijst" placeholder="Typ soortnaam..." required>
+                    <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required>
                     <datalist id="vogelLijst"></datalist>
                 </div>
-                <div class="input-group">
-                    <label>Wetenschappelijk</label>
-                    <input type="text" id="latinInput" placeholder="Automatisch...">
-                </div>
+                <input type="hidden" id="latinInput">
+                
                 <div class="row">
                     <div class="input-group">
                         <label>Aantal</label>
                         <input type="number" id="countInput" value="1" min="1">
                     </div>
                     <div class="input-group">
-                        <label>Locatietag</label>
+                        <label>Locatietag (Auto via GPS)</label>
                         <input type="text" id="tagInput" placeholder="Bijv. Hut 1">
                     </div>
                 </div>
+                
                 <div class="input-group">
                     <label>Notities</label>
-                    <textarea id="noteInput" rows="2"></textarea>
+                    <textarea id="noteInput" rows="2" placeholder="Bijzonderheden..."></textarea>
                 </div>
-                <button type="submit" id="saveBtn">OPSLAAN 💾</button>
+                <button type="submit" id="saveBtn">WAARNEMING OPSLAAN 💾</button>
             </form>
-        </details>
+        </section>
 
-        <details class="section-card">
-            <summary><h2>Statistieken</h2></summary>
+        <section class="section-card">
             <div class="stats-grid">
-                <div class="stat-item" style="background: #e8f0e6; grid-column: span 2;">
-                    <span class="stat-label">Life List (Totaal Soorten)</span>
+                <div class="stat-item total">
+                    <span class="stat-label">Life List</span>
                     <span id="totalSpecies" class="stat-value">0</span>
                 </div>
-                <div class="stat-item" style="background: #e3f2fd;">
+                <div class="stat-item today">
                     <span class="stat-label">Vandaag</span>
                     <span id="speciesToday" class="stat-value">0</span>
                 </div>
-                <div class="stat-item" style="background: #fff3e0;">
-                    <span class="stat-label">Jaarlijst 2026</span>
+                <div class="stat-item year">
+                    <span class="stat-label">Jaar 2026</span>
                     <span id="speciesYear" class="stat-value">0</span>
                 </div>
             </div>
-        </details>
+        </section>
 
         <section class="section-card">
-            <div class="header-row">
-                <h2>Mijn Waarnemingen</h2>
+            <div class="list-header">
+                <input type="text" id="searchObs" placeholder="Zoek in lijst..." oninput="renderObservations()">
                 <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
-            </div>
-
-            <div class="input-group">
-                <input type="text" id="searchObs" placeholder="Zoek op naam of tag..." oninput="renderObservations()">
             </div>
 
             <div class="filter-bar">
-                <button id="filterAllBtn" onclick="toggleFilter('alles')" class="active">Alles</button>
-                <button id="filterTodayBtn" onclick="toggleFilter('vandaag')">Vandaag</button>
-                <button id="filterPendingBtn" onclick="toggleFilter('pending')">Niet gesynct</button>
+                <button id="btnAll" class="active" onclick="setFilter('alles')">Alles</button>
+                <button id="btnToday" onclick="setFilter('vandaag')">Vandaag</button>
+                <button id="btnPending" onclick="setFilter('pending')">Niet gesynct</button>
             </div>
 
             <div id="obsList"></div>
         </section>
     </main>
+
     <script src="app.js"></script>
 </body>
 </html>
-        <h1>🐦 VogelSpotter</h1>
-        <div id="gps-indicator">📍 GPS zoeken...</div>
-    </header>
-
-    <main>
-        <details open class="section-card">
-            <summary><h2>Nieuwe Waarneming</h2></summary>
-            <form id="obsForm">
-                <div class="input-group">
-                    <label>Vogelsoort</label>
-                    <input type="text" id="speciesInput" list="vogelLijst" placeholder="Typ soortnaam..." required>
-                    <datalist id="vogelLijst"></datalist>
-                </div>
-                <div class="input-group">
-                    <label>Wetenschappelijke naam</label>
-                    <input type="text" id="latinInput" placeholder="Automatisch via lijst...">
-                </div>
-                <div class="row">
-                    <div class="input-group">
-                        <label>Aantal</label>
-                        <input type="number" id="countInput" value="1" min="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Locatietag</label>
-                        <input type="text" id="tagInput" placeholder="Bijv. Hut 1">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>Notities</label>
-                    <textarea id="noteInput" rows="2"></textarea>
-                </div>
-                <button type="submit" id="saveBtn">OPSLAAN OP TELEFOON 💾</button>
-            </form>
-        </details>
-
-        <section class="section-card">
-            <div class="header-row">
-                <h2>Waarnemingen</h2>
-                <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
-            </div>
-            <div id="obsList"></div>
-        </section>
-        
-        <details class="section-card">
-            <summary><h2>Statistieken & Lifelist</h2></summary>
-            <div class="stats-grid">
-                <div class="stat-item"><span class="stat-label">Soorten</span><span id="totalSpecies" class="stat-value">0</span></div>
-                <div class="stat-item"><span class="stat-label">Vogels</span><span id="totalBirds" class="stat-value">0</span></div>
-            </div>
-            <ul id="lifelist" class="scroll-list"></ul>
-        </details>
-    </main>
-    <script src="app.js"></script>
-</body>
-</html>
-
