@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VogelApp V3.3 Fix</title>
+    <title>VogelApp V3.4 Stabiel</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -13,7 +13,7 @@
         .section-card { background: white; margin: 10px; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         label { display: block; font-weight: bold; font-size: 0.7rem; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1rem; margin-bottom: 12px; }
-        #mapPicker { height: 220px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 10px; }
+        #mapPicker { height: 200px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 10px; }
         .btn { border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; width: 100%; }
         .btn-save { background: var(--primary); font-size: 1.1rem; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
@@ -23,7 +23,7 @@
         .filter-bar { display: flex; gap: 5px; margin-top: 10px; }
         .filter-btn { flex: 1; padding: 8px; font-size: 0.75rem; border-radius: 20px; border: 1px solid var(--primary); background: white; color: var(--primary); font-weight: bold; }
         .filter-btn.active { background: var(--primary); color: white; }
-        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
         .card.pending { border-left-color: var(--accent); }
         .card.synced { border-left-color: #4caf50; }
         #mapContainer { display: none; margin-bottom: 10px; }
@@ -33,7 +33,6 @@
 
 <div class="header">
     <h3 style="margin:0;">🐦 Vogel Logboek</h3>
-    <div id="gps-status" style="font-size:0.6rem; margin-top:2px;">Zoeken...</div>
 </div>
 
 <div class="section-card stats-grid">
@@ -46,10 +45,11 @@
 <div class="section-card">
     <form id="obsForm">
         <input type="hidden" id="editId">
-        <input type="hidden" id="latinInput"><input type="hidden" id="statusInput">
+        <input type="hidden" id="latinInput">
+        <input type="hidden" id="statusInput">
         
         <label>Vogelsoort</label>
-        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Naam..." required autocomplete="off">
+        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required autocomplete="off">
         <datalist id="vogelLijst"></datalist>
         <div id="speciesInfo" style="font-size:0.8rem; margin:-8px 0 12px 0; font-style:italic; color:var(--primary); min-height:1.1em;"></div>
 
@@ -73,7 +73,7 @@
             <input type="text" id="latitude" readonly placeholder="Lat" style="background:#f5f5f5;">
             <input type="text" id="longitude" readonly placeholder="Lon" style="background:#f5f5f5;">
         </div>
-        <input type="text" id="tagInput" placeholder="Plaatsnaam (automatisch...)">
+        <input type="text" id="tagInput" placeholder="Plaatsnaam...">
 
         <label>Datum & Tijd</label>
         <input type="datetime-local" id="datetimeInput" required>
@@ -86,7 +86,7 @@
 </div>
 
 <div class="section-card">
-    <input type="text" id="searchInput" placeholder="Zoek in soorten..." oninput="renderObservations()">
+    <input type="text" id="searchInput" placeholder="Zoek soort..." oninput="renderObservations()">
     <div class="filter-bar">
         <button onclick="setFilter('vandaag')" class="filter-btn active" id="filter-vandaag">Vandaag</button>
         <button onclick="setFilter('alles')" class="filter-btn" id="filter-alles">Alles</button>
