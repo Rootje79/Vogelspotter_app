@@ -1,12 +1,10 @@
 {
-  "name": "VogelSpotter Rolinda",
+  "name": "VogelSpotter Pro",
   "short_name": "VogelSpotter",
-  "description": "Persoonlijk vogelwaarnemingen logboek",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#2d5a27",
   "theme_color": "#2d5a27",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "vogelspotter-icon.png",
