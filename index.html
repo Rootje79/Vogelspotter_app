@@ -36,7 +36,7 @@
                 </div>
 
                 <div class="input-group">
-                    <label>Datum & Tijd (vooraf ingevuld op NU)</label>
+                    <label>Datum & Tijd</label>
                     <input type="datetime-local" id="manualTimestamp">
                 </div>
                 
@@ -65,6 +65,21 @@
             </div>
         </section>
 
+        <section class="section-card">
+            <div class="list-header">
+                <input type="text" id="searchObs" placeholder="Zoek in lijst..." oninput="renderObservations()">
+                <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
+            </div>
+
+            <div class="filter-bar">
+                <button id="btnAll" onclick="toggleFilter('alles')">Alles</button>
+                <button id="btnToday" class="active" onclick="toggleFilter('vandaag')">Vandaag</button>
+                <button id="btnPending" onclick="toggleFilter('pending')">Niet gesynct</button>
+            </div>
+
+            <div id="obsList"></div>
+        </section>
+
         <details class="section-card">
             <summary>📍 Locatie Beheer (Handmatig)</summary>
             <div style="margin-top:15px;">
@@ -82,40 +97,4 @@
                         <input type="number" id="manualLon" step="any" placeholder="5.456">
                     </div>
                 </div>
-                <button onclick="voegLocatieHandmatigToe()" style="background:var(--accent); color:white; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold;">Locatie Toevoegen</button>
-                <div id="tagList" style="margin-top:10px; font-size:0.8rem;"></div>
-            </div>
-        </details>
-
-        <details class="section-card">
-            <summary>⚙️ App Instellingen & Backup</summary>
-            <div style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
-                <button onclick="exporteerData()" style="width:100%; background:#666; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; margin-bottom:15px;">📥 Download Back-up (.json)</button>
-                
-                <div style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                    <label style="font-size:0.7rem; font-weight:bold; display:block; margin-bottom:5px;">Upload Back-up bestand:</label>
-                    <input type="file" id="importFile" accept=".json" style="font-size:0.8rem; width:100%;">
-                    <button onclick="startDeImport()" style="margin-top:10px; width:100%; background:var(--accent); color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">START IMPORT</button>
-                </div>
-            </div>
-        </details>
-
-        <section class="section-card">
-            <div class="list-header">
-                <input type="text" id="searchObs" placeholder="Zoek in lijst..." oninput="renderObservations()">
-                <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
-            </div>
-
-            <div class="filter-bar">
-                <button id="btnAll" onclick="toggleFilter('alles')">Alles</button>
-                <button id="btnToday" class="active" onclick="toggleFilter('vandaag')">Vandaag</button>
-                <button id="btnPending" onclick="toggleFilter('pending')">Niet gesynct</button>
-            </div>
-
-            <div id="obsList"></div>
-        </section>
-    </main>
-
-    <script src="app.js"></script>
-</body>
-</html>
+                <button onclick="voegLocatieHandmatigToe()" style="background:var(--accent); color:white;
