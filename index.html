@@ -3,108 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VogelSpotter Pro</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="vogelspotter-icon.png">
+    <title>VogelApp Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --primary: #2d5a27; --bg: #f4f7f4; }
+        body { font-family: sans-serif; margin: 0; background: var(--bg); padding-bottom: 80px; }
+        .header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top:0; z-index: 1000; }
+        .section-card { background: white; margin: 10px; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.75rem; text-transform: uppercase; color: #555; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        #mapPicker { height: 250px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ccc; }
+        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
+        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card.pending { border-left-color: #ffa000; }
+        .card.synced { border-left-color: #4caf50; }
+        .delete-btn { color: #f44336; background: none; border: none; font-size: 1.4rem; padding: 5px; }
+        .latin-text { font-style: italic; color: #666; font-size: 0.85rem; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>🐦 VogelSpotter</h1>
-        <div id="gps-indicator">📍 GPS initialiseren...</div>
-    </header>
 
-    <main>
-        <section class="section-card">
-            <form id="obsForm">
-                <div class="input-group">
-                    <label>Vogelsoort</label>
-                    <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required>
-                    <datalist id="vogelLijst"></datalist>
-                </div>
-                <input type="hidden" id="latinInput">
-                
-                <div class="row">
-                    <div class="input-group">
-                        <label>Aantal</label>
-                        <input type="number" id="countInput" value="1" min="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Locatietag</label>
-                        <input type="text" id="tagInput" placeholder="Bijv. Hut 1">
-                    </div>
-                </div>
+<div class="header">
+    <h2 style="margin:0;">🐦 Vogel Logboek</h2>
+    <div id="gps-indicator" style="font-size: 0.7rem; opacity: 0.9;">📍 GPS laden...</div>
+</div>
 
-                <div class="input-group">
-                    <label>Datum & Tijd</label>
-                    <input type="datetime-local" id="manualTimestamp">
-                </div>
-                
-                <div class="input-group">
-                    <label>Notities</label>
-                    <textarea id="noteInput" rows="2" placeholder="Bijzonderheden..."></textarea>
-                </div>
-                <button type="submit" id="saveBtn">WAARNEMING OPSLAAN 💾</button>
-            </form>
-        </section>
+<div class="section-card">
+    <form id="obsForm">
+        <input type="hidden" id="editId">
+        <input type="hidden" id="latinInput">
+        <input type="hidden" id="statusInput">
+        
+        <div class="input-group">
+            <label>Vogelsoort</label>
+            <input type="text" id="speciesInput" list="vogelLijst" placeholder="Typ naam..." required autocomplete="off">
+            <datalist id="vogelLijst"></datalist>
+            <div id="speciesInfo" style="margin-top:5px; font-size:0.85rem; color:#2d5a27; min-height:1em;"></div>
+        </div>
 
-        <section class="section-card">
-            <div class="stats-grid">
-                <div class="stat-item total">
-                    <span class="stat-label">Life List</span>
-                    <span id="totalSpecies" class="stat-value">0</span>
-                </div>
-                <div class="stat-item today">
-                    <span class="stat-label">Vandaag</span>
-                    <span id="speciesToday" class="stat-value">0</span>
-                </div>
-                <div class="stat-item year">
-                    <span class="stat-label">Jaar 2026</span>
-                    <span id="speciesYear" class="stat-value">0</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="input-group">
+                <label>Aantal</label>
+                <input type="number" id="countInput" value="1" min="1">
+            </div>
+            <div class="input-group">
+                <label>Type</label>
+                <div style="display: flex; gap: 10px; padding-top: 8px;">
+                    <label style="text-transform:none; font-weight:normal;"><input type="checkbox" id="checkGezien" checked> Gezien</label>
+                    <label style="text-transform:none; font-weight:normal;"><input type="checkbox" id="checkGehoord"> Gehoord</label>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <section class="section-card">
-            <div class="list-header">
-                <input type="text" id="searchObs" placeholder="Zoek in lijst..." oninput="renderObservations()">
-                <button id="syncBtn" onclick="synchroniseerData()">Sync ☁️</button>
+        <div class="input-group">
+            <label>Locatie op kaart</label>
+            <div id="mapPicker"></div>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="latitude" readonly placeholder="Lat" style="background:#f9f9f9; font-size:0.8rem;">
+                <input type="text" id="longitude" readonly placeholder="Lon" style="background:#f9f9f9; font-size:0.8rem;">
             </div>
+        </div>
 
-            <div class="filter-bar">
-                <button id="btnAll" onclick="toggleFilter('alles')">Alles</button>
-                <button id="btnToday" class="active" onclick="toggleFilter('vandaag')">Vandaag</button>
-                <button id="btnPending" onclick="toggleFilter('pending')">Niet gesynct</button>
-            </div>
+        <div class="input-group">
+            <label>Notities / Gebied</label>
+            <textarea id="noteInput" placeholder="Bijv. 'In de struiken' of de gebiedsnaam"></textarea>
+        </div>
 
-            <div id="obsList"></div>
-        </section>
+        <button type="submit" id="saveBtn" class="btn-save">WAARNEMING OPSLAAN 💾</button>
+    </form>
+</div>
 
-        <details class="section-card">
-            <summary>📍 Locatie Beheer (Handmatig)</summary>
-            <div style="margin-top:15px;">
-                <input type="text" id="manualTagName" placeholder="Naam plek" style="margin-bottom:10px;">
-                <div class="row">
-                    <input type="number" id="manualLat" step="any" placeholder="Lat">
-                    <input type="number" id="manualLon" step="any" placeholder="Lon">
-                </div>
-                <button onclick="voegLocatieHandmatigToe()" class="secondary-btn" style="margin-top:10px;">Locatie Toevoegen</button>
-                <div id="tagList" style="margin-top:10px;"></div>
-            </div>
-        </details>
+<div style="padding: 0 10px;">
+    <button onclick="synchroniseerData()" style="width:100%; padding: 12px; border-radius: 8px; background: #2196F3; color:white; border:none; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">SYNC NAAR GOOGLE SHEETS ☁️</button>
+</div>
 
-        <section class="section-card admin-box">
-            <h3>⚙️ Systeem & Backup</h3>
-            <button onclick="exporteerData()" class="backup-btn">📥 DOWNLOAD BACK-UP (.json)</button>
-            
-            <div class="import-zone">
-                <label>Upload Back-up bestand:</label>
-                <input type="file" id="importFile" accept=".json">
-                <button onclick="startDeImport()" class="import-confirm-btn">START IMPORT</button>
-            </div>
-        </section>
-    </main>
+<div id="obsList"></div>
 
-    <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
