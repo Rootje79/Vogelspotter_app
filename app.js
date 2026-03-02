@@ -1,12 +1,11 @@
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhghDGxZVExNW8TIZ2qzMqHFK3tEVFFblg6ODEp4Juel9g1AT3vf541-gcDmN8qqNeeA/exec";
-const GOOGLE_SCRIPT_URL = "JOUW_WEB_APP_URL_HIER";
 
 // --- GLOBALE VARIABELEN ---
 let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let locationTags = JSON.parse(localStorage.getItem('locationTags')) || [];
 let vogelAtlas = [];
 let currentCoords = null;
-let huidigeFilter = 'vandaag';
+let huidigeFilter = 'vandaag'; // Standaard filter op vandaag
 
 // --- 1. INITIALISATIE ---
 async function init() {
@@ -15,7 +14,7 @@ async function init() {
     startGPS();
     resetTimestamp();
     renderTags();
-    renderObservations();
+    renderObservations(); // Dit vult direct de lijst en de tellers
 }
 
 async function laadVogelLijst() {
@@ -36,7 +35,7 @@ async function laadVogelLijst() {
     }
 }
 
-// --- 2. BACKUP FUNCTIES ---
+// --- 2. BACKUP & IMPORT (CHROME PROOF) ---
 function startDeImport() {
     const fileInput = document.getElementById('importFile');
     if (!fileInput || !fileInput.files[0]) {
@@ -53,7 +52,7 @@ function startDeImport() {
                     observations = [...observations, ...data.obs];
                     locationTags = [...locationTags, ...data.tags];
                     
-                    // Verwijder dubbelen
+                    // Verwijder dubbelen op basis van unieke ID/Naam
                     observations = observations.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
                     locationTags = locationTags.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
 
@@ -99,9 +98,8 @@ function startGPS() {
             if (ind) ind.innerText = `📍 GPS OK (±${Math.round(p.coords.accuracy)}m)`;
             checkNearbyTags();
         }, (err) => {
-            console.warn("GPS Fout:", err);
             const ind = document.getElementById('gps-indicator');
-            if (ind) ind.innerText = "📍 GPS uit/geen bereik";
+            if (ind) ind.innerText = "📍 GPS uit of geen bereik";
         }, { enableHighAccuracy: true });
     }
 }
@@ -135,7 +133,7 @@ function berekenAfstand(c1, c2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// --- 4. FORMULIER LOGICA ---
+// --- 4. FORMULIER & OPSLAAN ---
 function resetTimestamp() {
     const nu = new Date();
     nu.setMinutes(nu.getMinutes() - nu.getTimezoneOffset());
@@ -163,7 +161,6 @@ if (obsForm) {
             timestamp: manualTime.toLocaleString('nl-NL')
         };
 
-        // Nieuwe locatie opslaan als die nog niet bestaat
         if (tagName && currentCoords) {
             if (!locationTags.find(t => t.name.toLowerCase() === tagName.toLowerCase())) {
                 locationTags.push({ name: tagName, lat: currentCoords.lat, lon: currentCoords.lon });
@@ -182,7 +179,6 @@ if (obsForm) {
     });
 }
 
-// Automatisch Latijnse naam invullen
 const speciesInput = document.getElementById('speciesInput');
 if (speciesInput) {
     speciesInput.addEventListener('input', (e) => {
@@ -192,7 +188,7 @@ if (speciesInput) {
     });
 }
 
-// --- 5. FILTEREN & TONEN ---
+// --- 5. STATISTIEKEN & FILTEREN ---
 function toggleFilter(f) {
     huidigeFilter = f;
     const btnAll = document.getElementById('btnAll');
@@ -212,17 +208,24 @@ function renderObservations() {
     
     const searchTerm = (document.getElementById('searchObs')?.value || "").toLowerCase();
     const nuStr = new Date().toLocaleDateString('nl-NL');
-    const jaarStr = "2026";
+    const ditJaar = new Date().getFullYear().toString();
 
-    // Update Stats
+    // Stats Berekenen (Unieke soorten)
     const totalDisp = document.getElementById('totalSpecies');
     const todayDisp = document.getElementById('speciesToday');
     const yearDisp = document.getElementById('speciesYear');
     
     if (totalDisp) totalDisp.innerText = new Set(observations.map(o => o.species)).size;
-    if (todayDisp) todayDisp.innerText = new Set(observations.filter(o => o.timestamp.includes(nuStr)).map(o => o.species)).size;
-    if (yearDisp) yearDisp.innerText = new Set(observations.filter(o => o.timestamp.includes(jaarStr)).map(o => o.species)).size;
+    if (todayDisp) {
+        const vandaagObs = observations.filter(o => o.timestamp && o.timestamp.includes(nuStr));
+        todayDisp.innerText = new Set(vandaagObs.map(o => o.species)).size;
+    }
+    if (yearDisp) {
+        const jaarObs = observations.filter(o => o.timestamp && o.timestamp.includes(ditJaar));
+        yearDisp.innerText = new Set(jaarObs.map(o => o.species)).size;
+    }
 
+    // Filter de lijst
     let filtered = observations.filter(o => {
         const matchSearch = o.species.toLowerCase().includes(searchTerm) || (o.tag && o.tag.toLowerCase().includes(searchTerm));
         if (huidigeFilter === 'vandaag') return matchSearch && o.timestamp.includes(nuStr);
@@ -230,18 +233,22 @@ function renderObservations() {
         return matchSearch;
     });
 
-    list.innerHTML = filtered.map(o => `
-        <div class="card ${o.synced ? 'synced' : 'pending'}">
-            <div>
-                <strong>${o.species} ${o.synced ? '✅' : '☁️'}</strong><br>
-                <small>${o.timestamp} | ${o.tag || 'Geen tag'}</small>
+    if (filtered.length === 0) {
+        list.innerHTML = `<p style="text-align:center; color:#888; padding:20px;">Geen waarnemingen.</p>`;
+    } else {
+        list.innerHTML = filtered.map(o => `
+            <div class="card ${o.synced ? 'synced' : 'pending'}">
+                <div>
+                    <strong>${o.species} ${o.synced ? '✅' : '☁️'}</strong><br>
+                    <small>${o.timestamp} | ${o.tag || 'Geen tag'}</small>
+                </div>
+                <button class="delete-btn" onclick="verwijderWaarneming(${o.id})">🗑️</button>
             </div>
-            <button class="delete-btn" onclick="verwijderWaarneming(${o.id})">🗑️</button>
-        </div>
-    `).join('');
+        `).join('');
+    }
 }
 
-// --- 6. EXTRA FUNCTIES ---
+// --- 6. LOCATIE & SYNC ---
 function voegLocatieHandmatigToe() {
     const name = document.getElementById('manualTagName').value.trim();
     const lat = parseFloat(document.getElementById('manualLat').value);
@@ -254,15 +261,13 @@ function voegLocatieHandmatigToe() {
         document.getElementById('manualLon').value = '';
         renderTags();
         alert("Locatie toegevoegd!");
-    } else {
-        alert("Vul naam en geldige coördinaten in.");
     }
 }
 
 function renderTags() {
     const container = document.getElementById('tagList');
     if (!container) return;
-    container.innerHTML = locationTags.length === 0 ? "Geen opgeslagen plekken." : locationTags.map((t, i) => `
+    container.innerHTML = locationTags.map((t, i) => `
         <div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #eee;">
             <span>${t.name}</span>
             <span onclick="verwijderTag(${i})" style="color:red; cursor:pointer;">❌</span>
@@ -289,21 +294,17 @@ function verwijderWaarneming(id) {
 async function synchroniseerData() {
     const pending = observations.filter(o => !o.synced);
     if (pending.length === 0) return alert("Alles is gesynchroniseerd!");
-    
     const btn = document.getElementById('syncBtn');
     if (btn) { btn.disabled = true; btn.innerText = "..."; }
-
     for (let o of pending) {
         try {
             await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(o) });
             o.synced = true;
-        } catch (e) { console.error("Sync fout"); break; }
+        } catch (e) { break; }
     }
-
     localStorage.setItem('birdObs', JSON.stringify(observations));
     if (btn) { btn.disabled = false; btn.innerText = "Sync ☁️"; }
     renderObservations();
 }
 
-// --- START DE APP ---
 init();
