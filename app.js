@@ -231,12 +231,43 @@ function exportData() {
 function importData() {
     const input = document.createElement('input');
     input.type = 'file';
+    input.accept = '.json';
     input.onchange = e => {
         const reader = new FileReader();
         reader.onload = ev => {
-            observations = JSON.parse(ev.target.result);
-            localStorage.setItem('birdObs', JSON.stringify(observations));
-            renderObservations();
+            try {
+                const geimporteerdeData = JSON.parse(ev.target.result);
+                
+                // Zorg dat elke waarneming een uniek ID en een datum heeft
+                const opgeschoondeData = geimporteerdeData.map((item, index) => {
+                    // Als ID ontbreekt of 0 is, maak een nieuwe: Tijd + index + random
+                    if (!item.id || item.id === 0) {
+                        item.id = Date.now() + index + Math.floor(Math.random() * 1000);
+                    }
+                    
+                    // Als isoDate ontbreekt, probeer deze te herleiden of pak 'nu'
+                    if (!item.isoDate) {
+                        item.isoDate = item.timestamp ? 
+                            parseOldTimestamp(item.timestamp).toISOString() : 
+                            new Date().toISOString();
+                    }
+                    
+                    return item;
+                });
+
+                // Voeg toe aan bestaande waarnemingen (voorkom dubbelen op basis van ID)
+                const bestaandeIds = new Set(observations.map(o => o.id));
+                const nieuweItems = opgeschoondeData.filter(item => !bestaandeIds.has(item.id));
+                
+                observations = [...nieuweItems, ...observations];
+                
+                localStorage.setItem('birdObs', JSON.stringify(observations));
+                renderObservations();
+                alert(`${nieuweItems.length} nieuwe waarnemingen toegevoegd!`);
+            } catch (fout) {
+                alert("Fout bij importeren: Ongeldig bestand.");
+                console.error(fout);
+            }
         };
         reader.readAsText(e.target.files[0]);
     };
