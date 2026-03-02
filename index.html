@@ -21,11 +21,33 @@
         .card.synced { border-left-color: #4caf50; }
         .delete-btn { color: #f44336; background: none; border: none; font-size: 1.4rem; padding: 5px; }
         .latin-text { font-style: italic; color: #666; font-size: 0.85rem; }
+        .filter-btn { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid var(--primary); background: white; color: var(--primary); font-size: 0.8rem; cursor: pointer; }
+        .filter-btn.active { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
 
 <div class="header">
+    <div class="section-card" style="display: flex; justify-content: space-around; text-align: center; background: #e8f5e9;">
+    <div>
+        <div style="font-size: 0.7rem; color: #666; text-transform: uppercase;">Totaal</div>
+        <div id="statTotal" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">0</div>
+    </div>
+    <div style="border-left: 1px solid #ccc; padding-left: 15px;">
+        <div style="font-size: 0.7rem; color: #666; text-transform: uppercase;">Vandaag</div>
+        <div id="statToday" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">0</div>
+    </div>
+    <div style="border-left: 1px solid #ccc; padding-left: 15px;">
+        <div style="font-size: 0.7rem; color: #666; text-transform: uppercase;">Niet gesynct</div>
+        <div id="statPending" style="font-size: 1.2rem; font-weight: bold; color: #ffa000;">0</div>
+    </div>
+</div>
+
+<div style="margin: 10px; display: flex; gap: 5px;">
+    <button onclick="setFilter('alles')" class="filter-btn" id="filter-alles">Alles</button>
+    <button onclick="setFilter('vandaag')" class="filter-btn active" id="filter-vandaag">Vandaag</button>
+    <button onclick="setFilter('pending')" class="filter-btn" id="filter-pending">Wachtend</button>
+</div>
     <h2 style="margin:0;">🐦 Vogel Logboek</h2>
     <div id="gps-indicator" style="font-size: 0.7rem; opacity: 0.9;">📍 GPS laden...</div>
 </div>
@@ -84,3 +106,4 @@
 <script src="app.js"></script>
 </body>
 </html>
+
