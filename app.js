@@ -4,23 +4,23 @@ let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let vogelAtlas = [];
 let pickerMap, pickerMarker, huidigeFilter = 'vandaag';
 
-// Helpt om een Date object in het juiste formaat voor de input te krijgen
+// Helper: Datum naar formaat voor <input type="datetime-local">
 function getLocalISOString(date) {
     if (!date || isNaN(date.getTime())) date = new Date();
     const tzOffset = date.getTimezoneOffset() * 60000;
     return (new Date(date - tzOffset)).toISOString().slice(0, 16);
 }
 
-// Probeert een datum te maken van oude tekst-timestamps (bijv "2-3-2026 14:00")
+// Helper: Probeert een datum te maken van oude tekst ("2-3-2026 14:00")
 function parseOldTimestamp(ts) {
     if (!ts) return new Date();
-    // Vervang streepjes door schuine strepen voor betere browser support
-    const parts = ts.split(' ');
-    const dateParts = parts[0].split('-');
-    if (dateParts.length === 3) {
-        // Maak er YYYY-MM-DD van voor de constructor
-        return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '12:00'}`);
-    }
+    try {
+        const parts = ts.split(' ');
+        const dateParts = parts[0].split('-');
+        if (dateParts.length === 3) {
+            return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '12:00'}`);
+        }
+    } catch(e) { return new Date(); }
     return new Date();
 }
 
@@ -28,7 +28,7 @@ async function init() {
     await laadVogelLijst();
     initMap();
     startGPS();
-    // Alleen bij EERSTE keer laden van de app zetten we de klok op 'nu'
+    // Zet de invoerdatum standaard op NU
     document.getElementById('datetimeInput').value = getLocalISOString(new Date());
     renderObservations();
 }
@@ -41,7 +41,7 @@ async function laadVogelLijst() {
         vogelAtlas.forEach(v => {
             let o = document.createElement('option'); o.value = v.naam; dl.appendChild(o);
         });
-    } catch (e) { console.error("JSON laden mislukt"); }
+    } catch (e) { console.error("Kon soorten.json niet laden."); }
 }
 
 function initMap() {
@@ -93,7 +93,7 @@ document.getElementById('speciesInput').addEventListener('input', e => {
     }
 });
 
-// --- OPSLAAN / BIJWERKEN ---
+// OPSLAAN EN WIJZIGEN
 document.getElementById('obsForm').addEventListener('submit', e => {
     e.preventDefault();
     const editId = document.getElementById('editId').value;
@@ -107,7 +107,7 @@ document.getElementById('obsForm').addEventListener('submit', e => {
         methode: (document.getElementById('checkGezien').checked ? "Gezien" : "") + (document.getElementById('checkGehoord').checked ? " Gehoord" : ""),
         tag: document.getElementById('tagInput').value,
         notes: document.getElementById('noteInput').value,
-        coords: { lat: parseFloat(document.getElementById('latitude').value), lon: parseFloat(document.getElementById('longitude').value) },
+        coords: { lat: parseFloat(document.getElementById('latitude').value) || 52, lon: parseFloat(document.getElementById('longitude').value) || 5 },
         synced: false,
         timestamp: gekozenDatum.toLocaleString('nl-NL'),
         isoDate: gekozenDatum.toISOString()
@@ -116,56 +116,56 @@ document.getElementById('obsForm').addEventListener('submit', e => {
     if (editId) {
         const idx = observations.findIndex(o => o.id == editId);
         if (idx !== -1) {
-            // Update waarneming maar behoud het originele ID
             observations[idx] = { ...observations[idx], ...data, id: observations[idx].id };
         }
         document.getElementById('editId').value = "";
         document.getElementById('saveBtn').innerText = "OPSLAAN 💾";
-        document.getElementById('saveBtn').style.background = "var(--primary)";
+        document.getElementById('saveBtn').style.background = "#2d5a27";
     } else {
-        data.id = Date.now();
+        data.id = Date.now() + Math.floor(Math.random() * 1000);
         observations.unshift(data);
     }
 
     localStorage.setItem('birdObs', JSON.stringify(observations));
     e.target.reset();
-    // Zet de klok weer op 'nu' voor de volgende NIEUWE waarneming
     document.getElementById('datetimeInput').value = getLocalISOString(new Date());
     document.getElementById('speciesInfo').innerText = "";
     renderObservations();
 });
 
+// DE TELLERS EN DE LIJST
 function renderObservations() {
     const list = document.getElementById('obsList');
-    const query = document.getElementById('searchInput').value.toLowerCase();
+    const query = (document.getElementById('searchInput').value || "").toLowerCase();
     const nu = new Date();
     
-    const getUnique = (arr) => new Set(arr.map(o => o.species)).size;
-    document.getElementById('statLife').innerText = getUnique(observations);
-    document.getElementById('statYear').innerText = getUnique(observations.filter(o => new Date(o.isoDate || Date.now()).getFullYear() === nu.getFullYear()));
-    document.getElementById('statDay').innerText = getUnique(observations.filter(o => new Date(o.isoDate || Date.now()).toDateString() === nu.toDateString()));
-    document.getElementById('statMonth').innerText = getUnique(observations.filter(o => {
-        let d = new Date(o.isoDate || Date.now());
-        return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
-    }));
+    // Tellers (Life, Jaar, Maand, Dag)
+    const getUniqueSoorten = (arr) => new Set(arr.map(o => o.species)).size;
+    
+    const lifeList = observations;
+    const yearList = observations.filter(o => new Date(o.isoDate || Date.now()).getFullYear() === nu.getFullYear());
+    const monthList = yearList.filter(o => new Date(o.isoDate || Date.now()).getMonth() === nu.getMonth());
+    const dayList = observations.filter(o => new Date(o.isoDate || Date.now()).toDateString() === nu.toDateString());
+
+    document.getElementById('statLife').innerText = getUniqueSoorten(lifeList);
+    document.getElementById('statYear').innerText = getUniqueSoorten(yearList);
+    document.getElementById('statMonth').innerText = getUniqueSoorten(monthList);
+    document.getElementById('statDay').innerText = getUniqueSoorten(dayList);
 
     let filtered = observations.filter(o => {
         const match = o.species.toLowerCase().includes(query) || (o.tag && o.tag.toLowerCase().includes(query));
-        if (huidigeFilter === 'vandaag') {
-            const d = o.isoDate ? new Date(o.isoDate) : parseOldTimestamp(o.timestamp);
-            return match && d.toDateString() === nu.toDateString();
-        }
+        if (huidigeFilter === 'vandaag') return match && new Date(o.isoDate || Date.now()).toDateString() === nu.toDateString();
         if (huidigeFilter === 'pending') return match && !o.synced;
         return match;
     });
 
     list.innerHTML = filtered.map(o => `
-        <div class="card ${o.synced ? 'synced' : 'pending'}">
+        <div class="card ${o.synced ? 'synced' : 'pending'}" style="background:white; padding:12px; margin:10px; border-radius:10px; border-left:6px solid ${o.synced ? '#4caf50' : '#ffa000'}; display:flex; justify-content:space-between; align-items:center;">
             <div style="flex:1" onclick="bewerkWaarneming(${o.id})">
                 <strong>${o.species} (${o.count})</strong><br>
                 <small>${o.timestamp} | ${o.tag || ''}</small>
             </div>
-            <button onclick="verwijder(${o.id})" style="border:none; background:none; color:red; font-size:1.2rem;">🗑️</button>
+            <button onclick="verwijder(${o.id})" style="border:none; background:none; color:red; font-size:1.2rem; padding:10px;">🗑️</button>
         </div>
     `).join('');
 }
@@ -177,7 +177,6 @@ function setFilter(f) {
     renderObservations();
 }
 
-// --- DE BEWERK FUNCTIE (NU EXTRA VEILIG) ---
 function bewerkWaarneming(id) {
     const o = observations.find(x => x.id == id);
     if(!o) return;
@@ -193,104 +192,4 @@ function bewerkWaarneming(id) {
     document.getElementById('statusInput').value = o.status || "";
     document.getElementById('speciesInfo').innerHTML = `<i>${o.latin || ''}</i> • <b>${o.status || ''}</b>`;
     
-    // BEPAAL DE DATUM: Gebruik isoDate OF herleid uit de timestamp tekst
-    let d;
-    if (o.isoDate) {
-        d = new Date(o.isoDate);
-    } else {
-        d = parseOldTimestamp(o.timestamp);
-    }
-    
-    // Forceer de datumkiezer naar de OUDE datum van de vogel
-    document.getElementById('datetimeInput').value = getLocalISOString(d);
-
-    document.getElementById('saveBtn').innerText = "WIJZIGING OPSLAAN ✏️";
-    document.getElementById('saveBtn').style.background = "var(--accent)";
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-async function synchroniseerData() {
-    const pending = observations.filter(o => !o.synced);
-    for (let o of pending) {
-        try {
-            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(o) });
-            o.synced = true;
-        } catch (e) {}
-    }
-    localStorage.setItem('birdObs', JSON.stringify(observations));
-    renderObservations();
-    alert("Klaar!");
-}
-
-function exportData() {
-    const blob = new Blob([JSON.stringify(observations)], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = "vogel_backup.json"; a.click();
-}
-
-function importData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = ev => {
-            try {
-                let json = JSON.parse(ev.target.result);
-                let data = Array.isArray(json) ? json : [json];
-                
-                // We maken een schone start voor de import
-                const nieuweLijst = data.map((item, index) => {
-                    const nu = new Date();
-                    // Herleid datum uit isoDate, timestamp of pak NU
-                    let d = item.isoDate ? new Date(item.isoDate) : 
-                            (item.timestamp ? parseOldTimestamp(item.timestamp) : nu);
-                    
-                    // Als de datum ongeldig is, pak nu
-                    if (isNaN(d.getTime())) d = nu;
-
-                    return {
-                        id: Date.now() + index + Math.floor(Math.random() * 1000),
-                        species: item.species || "Onbekend",
-                        latin: item.latin || "",
-                        status: item.status || "",
-                        count: item.count || 1,
-                        methode: item.methode || "Gezien",
-                        tag: item.tag || "",
-                        notes: item.notes || "",
-                        coords: item.coords || { lat: 52.1, lon: 5.2 },
-                        synced: false,
-                        timestamp: d.toLocaleString('nl-NL'),
-                        isoDate: d.toISOString()
-                    };
-                });
-
-                // Voeg toe aan wat we al hadden
-                observations = [...nieuweLijst, ...observations];
-                localStorage.setItem('birdObs', JSON.stringify(observations));
-                
-                // FORCEER REFRESH VAN SCHERM
-                renderObservations();
-                alert(nieuweLijst.length + " vogels succesvol ingeladen!");
-            } catch (err) {
-                alert("Fout: Het bestand is geen geldig vogel-bestand.");
-                console.error(err);
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
-
-function verwijder(id) {
-    if(confirm("Verwijderen?")) {
-        observations = observations.filter(o => o.id != id);
-        localStorage.setItem('birdObs', JSON.stringify(observations));
-        renderObservations();
-    }
-}
-
-init();
+    const d = o.isoDate ? new Date(o.isoDate) :
