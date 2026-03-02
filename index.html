@@ -83,18 +83,28 @@
         <details class="section-card">
             <summary>📍 Locatie Beheer (Handmatig)</summary>
             <div style="margin-top:15px;">
-                <div class="input-group">
-                    <label>Naam nieuwe plek</label>
-                    <input type="text" id="manualTagName" placeholder="Bijv. Uitkijktoren">
-                </div>
+                <input type="text" id="manualTagName" placeholder="Naam plek" style="margin-bottom:10px;">
                 <div class="row">
-                    <div class="input-group">
-                        <label>Lat (Breedte)</label>
-                        <input type="number" id="manualLat" step="any" placeholder="52.123">
-                    </div>
-                    <div class="input-group">
-                        <label>Lon (Lengte)</label>
-                        <input type="number" id="manualLon" step="any" placeholder="5.456">
-                    </div>
+                    <input type="number" id="manualLat" step="any" placeholder="Lat">
+                    <input type="number" id="manualLon" step="any" placeholder="Lon">
                 </div>
-                <button onclick="voegLocatieHandmatigToe()" style="background:var(--accent); color:white;
+                <button onclick="voegLocatieHandmatigToe()" class="secondary-btn" style="margin-top:10px;">Locatie Toevoegen</button>
+                <div id="tagList" style="margin-top:10px;"></div>
+            </div>
+        </details>
+
+        <section class="section-card admin-box">
+            <h3>⚙️ Systeem & Backup</h3>
+            <button onclick="exporteerData()" class="backup-btn">📥 DOWNLOAD BACK-UP (.json)</button>
+            
+            <div class="import-zone">
+                <label>Upload Back-up bestand:</label>
+                <input type="file" id="importFile" accept=".json">
+                <button onclick="startDeImport()" class="import-confirm-btn">START IMPORT</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
