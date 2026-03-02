@@ -4,7 +4,6 @@ let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let vogelAtlas = [];
 let pickerMap, pickerMarker, huidigeFilter = 'vandaag';
 
-// Helper: zet een datum object om naar het formaat dat datetime-local begrijpt
 function getLocalISOString(date) {
     const tzOffset = date.getTimezoneOffset() * 60000;
     return (new Date(date - tzOffset)).toISOString().slice(0, 16);
@@ -14,7 +13,6 @@ async function init() {
     await laadVogelLijst();
     initMap();
     startGPS();
-    // Stel de standaard tijd in op nu
     document.getElementById('datetimeInput').value = getLocalISOString(new Date());
     renderObservations();
 }
@@ -56,9 +54,9 @@ async function haalAdresOp(lat, lon) {
     try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
         const data = await res.json();
-        const plek = data.address.city || data.address.town || data.address.village || data.address.suburb || "Onbekend";
+        const plek = data.address.city || data.address.town || data.address.village || "Onbekend";
         document.getElementById('tagInput').value = plek;
-    } catch (e) { console.log("Adres ophalen mislukt."); }
+    } catch (e) {}
 }
 
 function startGPS() {
@@ -66,8 +64,8 @@ function startGPS() {
         navigator.geolocation.getCurrentPosition(p => {
             setMarker(p.coords.latitude, p.coords.longitude);
             pickerMap.setView([p.coords.latitude, p.coords.longitude], 15);
-            document.getElementById('gps-status').innerText = "📍 GPS Locatie Actief";
-        }, (err) => { document.getElementById('gps-status').innerText = "📍 Handmatige locatie"; });
+            document.getElementById('gps-status').innerText = "📍 GPS Actief";
+        }, null, {enableHighAccuracy:true});
     }
 }
 
@@ -80,11 +78,10 @@ document.getElementById('speciesInput').addEventListener('input', e => {
     }
 });
 
+// --- DE OPSLAAN FUNCTIE ---
 document.getElementById('obsForm').addEventListener('submit', e => {
     e.preventDefault();
     const editId = document.getElementById('editId').value;
-    
-    // Pak de tijd uit het invulveld
     const gekozenDatum = new Date(document.getElementById('datetimeInput').value);
     
     const data = {
@@ -102,8 +99,12 @@ document.getElementById('obsForm').addEventListener('submit', e => {
     };
 
     if (editId) {
+        // Gebruik slappe vergelijking (==) voor het geval ID tekst of getal is
         const idx = observations.findIndex(o => o.id == editId);
-        observations[idx] = { ...observations[idx], ...data };
+        if (idx !== -1) {
+            observations[idx] = { ...observations[idx], ...data };
+            console.log("Bijgewerkt: ", editId);
+        }
         document.getElementById('editId').value = "";
         document.getElementById('saveBtn').innerText = "OPSLAAN 💾";
         document.getElementById('saveBtn').style.background = "var(--primary)";
@@ -123,33 +124,21 @@ function renderObservations() {
     const list = document.getElementById('obsList');
     const query = document.getElementById('searchInput').value.toLowerCase();
     const nu = new Date();
-    const nuVandaag = nu.toLocaleDateString('nl-NL');
     
+    // Stats Update
     const getUnique = (arr) => new Set(arr.map(o => o.species)).size;
-    
-    const yearList = observations.filter(o => {
-        let d = o.isoDate ? new Date(o.isoDate) : new Date();
-        return d.getFullYear() === nu.getFullYear();
-    });
-    const monthList = yearList.filter(o => {
-        let d = o.isoDate ? new Date(o.isoDate) : new Date();
-        return d.getMonth() === nu.getMonth();
-    });
-    const dayList = observations.filter(o => {
-        return (o.isoDate && new Date(o.isoDate).toDateString() === nu.toDateString()) || 
-               (o.timestamp && o.timestamp.includes(nuVandaag));
-    });
-
     document.getElementById('statLife').innerText = getUnique(observations);
-    document.getElementById('statYear').innerText = getUnique(yearList);
-    document.getElementById('statMonth').innerText = getUnique(monthList);
-    document.getElementById('statDay').innerText = getUnique(dayList);
+    document.getElementById('statYear').innerText = getUnique(observations.filter(o => new Date(o.isoDate || Date.now()).getFullYear() === nu.getFullYear()));
+    document.getElementById('statDay').innerText = getUnique(observations.filter(o => new Date(o.isoDate || Date.now()).toDateString() === nu.toDateString()));
+    // Maand stats toevoegen
+    document.getElementById('statMonth').innerText = getUnique(observations.filter(o => {
+        let d = new Date(o.isoDate || Date.now());
+        return d.getMonth() === nu.getMonth() && d.getFullYear() === nu.getFullYear();
+    }));
 
     let filtered = observations.filter(o => {
         const match = o.species.toLowerCase().includes(query) || (o.tag && o.tag.toLowerCase().includes(query));
-        if (huidigeFilter === 'vandaag') {
-            return match && ((o.isoDate && new Date(o.isoDate).toDateString() === nu.toDateString()) || (o.timestamp && o.timestamp.includes(nuVandaag)));
-        }
+        if (huidigeFilter === 'vandaag') return match && new Date(o.isoDate || Date.now()).toDateString() === nu.toDateString();
         if (huidigeFilter === 'pending') return match && !o.synced;
         return match;
     });
@@ -158,9 +147,9 @@ function renderObservations() {
         <div class="card ${o.synced ? 'synced' : 'pending'}">
             <div style="flex:1" onclick="bewerkWaarneming(${o.id})">
                 <strong>${o.species} (${o.count})</strong><br>
-                <small>${o.timestamp} | <b>${o.tag || 'Locatie'}</b></small>
+                <small>${o.timestamp} | ${o.tag || ''}</small>
             </div>
-            <button onclick="verwijder(${o.id})" style="border:none; background:none; color:red; font-size:1.3rem; padding:10px;">🗑️</button>
+            <button onclick="verwijder(${o.id})" style="border:none; background:none; color:red; font-size:1.2rem;">🗑️</button>
         </div>
     `).join('');
 }
@@ -173,8 +162,9 @@ function setFilter(f) {
 }
 
 function bewerkWaarneming(id) {
-    const o = observations.find(x => x.id === id);
+    const o = observations.find(x => x.id == id);
     if(!o) return;
+    
     document.getElementById('editId').value = o.id;
     document.getElementById('speciesInput').value = o.species;
     document.getElementById('countInput').value = o.count;
@@ -183,56 +173,8 @@ function bewerkWaarneming(id) {
     document.getElementById('latitude').value = o.coords.lat;
     document.getElementById('longitude').value = o.coords.lon;
     
-    if (o.isoDate) {
-        document.getElementById('datetimeInput').value = getLocalISOString(new Date(o.isoDate));
-    }
+    // Zorg dat de datumkiezer de tijd van de vogel pakt
+    const d = o.isoDate ? new Date(o.isoDate) : new Date();
+    document.getElementById('datetimeInput').value = getLocalISOString(d);
 
-    document.getElementById('saveBtn').innerText = "WIJZIGING OPSLAAN ✏️";
-    document.getElementById('saveBtn').style.background = "var(--accent)";
-    window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
-async function synchroniseerData() {
-    const pending = observations.filter(o => !o.synced);
-    if(pending.length === 0) return alert("Alles is gesynct!");
-    for (let o of pending) {
-        try {
-            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(o) });
-            o.synced = true;
-        } catch (e) { console.error(e); }
-    }
-    localStorage.setItem('birdObs', JSON.stringify(observations));
-    renderObservations();
-    alert("Sync voltooid!");
-}
-
-function exportData() {
-    const blob = new Blob([JSON.stringify(observations)], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = "vogel_backup.json"; a.click();
-}
-
-function importData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.onchange = e => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-            observations = JSON.parse(ev.target.result);
-            localStorage.setItem('birdObs', JSON.stringify(observations));
-            renderObservations();
-        };
-        reader.readAsText(e.target.files[0]);
-    };
-    input.click();
-}
-
-function verwijder(id) {
-    if(confirm("Waarneming definitief verwijderen?")) {
-        observations = observations.filter(o => o.id !== id);
-        localStorage.setItem('birdObs', JSON.stringify(observations));
-        renderObservations();
-    }
-}
-
-init();
+    document.getElementById('saveBtn').innerText = "WIJZIGING OPSLAAN ✏️
