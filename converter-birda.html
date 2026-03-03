@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Birda Sync [PAARS - CSV FIX]</title>
+    <title>Birda Sync [PAARS V4]</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #faf5ff; }
         .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; border-top: 8px solid #a855f7; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -13,10 +13,10 @@
 </head>
 <body>
 <div class="box">
-    <h2 style="color:#a855f7;">🟣 Birda naar Sheet Sync (V3)</h2>
-    <p>Status: <strong>CSV Parsing Fix + Latijn Match</strong></p>
+    <h2 style="color:#a855f7;">🟣 Birda naar Sheet Sync (V4)</h2>
+    <p>Status: <strong>Filter op lege regels + Latijn Match</strong></p>
     <textarea id="csvInput" placeholder="Plak hier de Birda CSV data..."></textarea>
-    <button onclick="convert()">CONVERTEER (PAARS) 🚀</button>
+    <button onclick="convert()">CONVERTEER (V4) 🚀</button>
     <div id="log">Status: Wachten op data...</div>
     <textarea id="jsonOutput" readonly style="height:150px;"></textarea>
     <button id="downloadBtn" style="display:none; background:#7e22ce; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
@@ -32,7 +32,6 @@ async function init() {
     } catch (e) { document.getElementById('log').innerHTML = "⚠️ Atlas niet gevonden."; }
 }
 
-// Functie om CSV regels correct te splitsen, ook met komma's in quotes
 function splitCSV(row) {
     const result = [];
     let cur = '', inQuote = false;
@@ -63,13 +62,15 @@ function convert() {
     const iCount = headers.indexOf('count');
 
     const results = lines.slice(1).map((line, idx) => {
-        if (!line.trim()) return null;
-        const cols = splitCSV(line);
+        if (!line.trim()) return null; // Sla echt lege regels over
         
+        const cols = splitCSV(line);
         const csvSci = cols[iSci] || "";
-        const csvCommon = cols[iCommon] || "Onbekend";
+        
+        // CRUCIALE FIX: Sla regels over die geen wetenschappelijke naam hebben (vookomt "Onbekend")
+        if (csvSci === "" || csvSci.toLowerCase() === "scientificname") return null;
 
-        // Zoek in atlas op Latijn
+        const csvCommon = cols[iCommon] || "Onbekend";
         let match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === csvSci.toLowerCase());
         
         const d = new Date(cols[iDate]);
@@ -98,9 +99,7 @@ function convert() {
     document.getElementById('jsonOutput').value = JSON.stringify(results, null, 2);
     document.getElementById('downloadBtn').style.display = "block";
     
-    if(results.length > 0) {
-        document.getElementById('log').innerHTML = `✅ Succes! ${results.length} regels verwerkt.\nEerste match: ${results[0].species} (${results[0].latin})\nCoords: ${results[0].coords.lat}, ${results[0].coords.lon}`;
-    }
+    document.getElementById('log').innerHTML = `✅ Klaar! ${results.length} geldige waarnemingen gevonden.\nLege regels zijn automatisch verwijderd.`;
 }
 
 function download() {
@@ -108,7 +107,7 @@ function download() {
     const blob = new Blob([data], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "birda_paars_fix.json";
+    a.download = "birda_v4_clean.json";
     a.click();
 }
 init();
