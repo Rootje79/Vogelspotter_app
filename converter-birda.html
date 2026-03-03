@@ -2,24 +2,24 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Birda naar Sheet Sync (Scientific Match)</title>
+    <title>Birda Sync [BLAUW VERSIE]</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f4f8; }
-        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        textarea { width: 100%; height: 200px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #ddd; box-sizing: border-box; }
-        button { background: #1e40af; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
-        #log { background: #1e293b; color: #fbbf24; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto; }
+        body { font-family: sans-serif; padding: 20px; background: #f0f9ff; }
+        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; border-top: 8px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 180px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #bae6fd; box-sizing: border-box; }
+        button { background: #0284c7; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
+        #log { background: #082f49; color: #bae6fd; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; }
     </style>
 </head>
 <body>
 <div class="box">
-    <h2>🐦 Birda naar Sheet Sync</h2>
-    <p>Plak de inhoud van je Birda CSV hieronder:</p>
-    <textarea id="csvInput"></textarea>
-    <button onclick="convert()">CONVERTEER OP BASIS VAN LATIJN 🚀</button>
-    <div id="log" class="log-box">Status: Wachten op data...</div>
-    <textarea id="jsonOutput" readonly style="height:150px;"></textarea>
-    <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
+    <h2 style="color:#0284c7;">🔵 Birda naar Sheet Sync</h2>
+    <p>Versie: <strong>Scientific Match + Exact Coords</strong></p>
+    <textarea id="csvInput" placeholder="Plak Birda CSV..."></textarea>
+    <button onclick="convert()">CONVERTEER (BLAUW) 🚀</button>
+    <div id="log">Status: Wachten op data...</div>
+    <textarea id="jsonOutput" readonly style="height:100px;"></textarea>
+    <button id="downloadBtn" style="display:none; background:#0369a1; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
 </div>
 
 <script>
@@ -29,80 +29,62 @@ async function init() {
         const res = await fetch('soorten.json');
         vogelAtlas = await res.json();
         document.getElementById('log').innerHTML = "✅ vogelatlas.json geladen.";
-    } catch (e) { document.getElementById('log').innerHTML = "⚠️ Let op: soorten.json niet gevonden."; }
-}
-
-function formatDate(val) {
-    if (!val) return "";
-    try {
-        const d = new Date(val);
-        if (isNaN(d.getTime())) return val;
-        const p = (n) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    } catch (e) { return val; }
+    } catch (e) { document.getElementById('log').innerHTML = "⚠️ Atlas niet gevonden."; }
 }
 
 function convert() {
     const input = document.getElementById('csvInput').value.trim();
     const lines = input.split(/\r?\n/);
     if(lines.length < 2) return;
-
     const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
     
-    const iId = headers.indexOf('sightingid');
-    const iDate = headers.indexOf('date');
-    const iLon = headers.indexOf('longitude');
-    const iLat = headers.indexOf('latitude');
     const iSci = headers.indexOf('scientificname');
     const iCommon = headers.indexOf('commonname');
-    const iCount = headers.indexOf('count');
+    const iLat = headers.indexOf('latitude');
+    const iLon = headers.indexOf('longitude');
+    const iDate = headers.indexOf('date');
     const iSession = headers.indexOf('sessiontitle');
+    const iCount = headers.indexOf('count');
 
     const results = lines.slice(1).map((line, idx) => {
         if (!line.trim()) return null;
         const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
-        
-        const csvSciName = cols[iSci] || "";
-        const csvCommonName = cols[iCommon] || "Onbekend";
+        const csvSci = cols[iSci] || "";
+        const csvCommon = cols[iCommon] || "Onbekend";
 
-        // PRIORITEIT: Zoek in atlas op de wetenschappelijke naam (WetSchap)
-        let match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === csvSciName.toLowerCase());
-        
-        // FALLBACK: Als Latijn niet matcht, probeer Nederlandse naam
-        if (!match) {
-            match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === csvCommonName.toLowerCase());
-        }
+        let match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === csvSci.toLowerCase());
+        if (!match) match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === csvCommon.toLowerCase());
+
+        const d = new Date(cols[iDate]);
+        const p = (n) => n.toString().padStart(2, '0');
+        const ts = isNaN(d.getTime()) ? cols[iDate] : `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`;
 
         return {
-            id: "BIRDA-" + (cols[iId] || idx),
-            species: match ? match.naam : csvCommonName, // Gebruik NL naam uit atlas
-            latin: match ? match.WetSchap : csvSciName,  // Gebruik Latijn uit atlas
+            id: "BIRDA-" + cols[0],
+            species: match ? match.naam : csvCommon,
+            latin: match ? match.WetSchap : csvSci,
             status: match ? match.status : "Onbekend",
             count: parseInt(cols[iCount]) || 1,
             methode: "Gezien",
-            tag: cols[iSession] || "Birda Locatie",
+            tag: cols[iSession] || "Birda Sessie",
             notes: "Birda Import",
-            timestamp: formatDate(cols[iDate]),
+            timestamp: ts,
             isoDate: cols[iDate],
-            synced: false, 
-            coords: { 
-                lat: Number(cols[iLat]),
-                lon: Number(cols[iLon]) 
-            }
+            synced: false,
+            coords: { lat: Number(cols[iLat]), lon: Number(cols[iLon]) }
         };
     }).filter(r => r !== null);
 
     document.getElementById('jsonOutput').value = JSON.stringify(results, null, 2);
     document.getElementById('downloadBtn').style.display = "block";
-    document.getElementById('log').innerHTML = `✅ ${results.length} regels verwerkt via Scientific Name matching.`;
+    document.getElementById('log').innerHTML = `✅ ${results.length} regels verwerkt via Latijnse match.`;
 }
-
 function download() {
     const data = document.getElementById('jsonOutput').value;
     const blob = new Blob([data], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "birda_scientific_export.json";
+    a.download = "birda_blauw.json";
     a.click();
 }
 init();
