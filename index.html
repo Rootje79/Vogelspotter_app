@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vogelspotter App V4</title>
+    <title>Vogelspotter App V4.2</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="icoon-512.png">
     <link rel="apple-touch-icon" href="icoon-512.png">
@@ -12,7 +12,8 @@
     <style>
         :root { --primary: #2d5a27; --bg: #f4f7f4; --accent: #ffa000; }
         body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg); padding-bottom: 60px; }
-        .header { background: var(--primary); color: white; padding: 12px; text-align: center; position: sticky; top:0; z-index:1000; }
+        .header { background: var(--primary); color: white; padding: 12px; display: flex; justify-content: center; align-items: center; gap: 10px; position: sticky; top:0; z-index:1000; }
+        .gps-dot { width: 12px; height: 12px; background: red; border-radius: 50%; border: 2px solid white; }
         .section-card { background: white; margin: 10px; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         label { display: block; font-weight: bold; font-size: 0.7rem; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1rem; margin-bottom: 12px; }
@@ -25,14 +26,14 @@
         .filter-bar { display: flex; gap: 5px; margin-top: 10px; }
         .filter-btn { flex: 1; padding: 8px; font-size: 0.75rem; border-radius: 20px; border: 1px solid var(--primary); background: white; color: var(--primary); font-weight: bold; }
         .filter-btn.active { background: var(--primary); color: white; }
-        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 
-<div class="header" style="display: flex; justify-content: center; align-items: center; gap: 10px;">
-    <h3 style="margin:0;">🐦 Vogel Logboek V4</h3>
-    <div id="gpsStatus" style="width: 12px; height: 12px; background: red; border-radius: 50%; border: 2px solid white;" title="GPS Status"></div>
+<div class="header">
+    <h3 style="margin:0;">🐦 Vogel Logboek V4.2</h3>
+    <div id="gpsStatus" class="gps-dot" title="GPS Status"></div>
 </div>
 
 <div class="section-card stats-grid">
@@ -44,11 +45,14 @@
 
 <div class="section-card">
     <form id="obsForm">
-        <input type="hidden" id="editId"><input type="hidden" id="latinInput"><input type="hidden" id="statusInput">
+        <input type="hidden" id="editId">
+        <input type="hidden" id="latinInput">
+        <input type="hidden" id="statusInput">
+        
         <label>Soort</label>
         <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required autocomplete="off">
         <datalist id="vogelLijst"></datalist>
-        <div id="speciesInfo" style="font-size:0.8rem; margin-top:-10px; margin-bottom:10px; color:var(--primary); font-style:italic;"></div>
+        <div id="speciesInfo" style="font-size:0.8rem; margin-top:-10px; margin-bottom:10px; color:var(--primary); font-style:italic; min-height: 1em;"></div>
 
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>Aantal</label><input type="number" id="countInput" value="1"></div>
@@ -64,11 +68,12 @@
         <label>Locatie</label>
         <div id="mapContainer" style="display:none;"><div id="mapPicker"></div></div>
         <button type="button" onclick="toggleKaart()" id="mapToggleBtn" class="btn" style="background:#666; margin-bottom:10px;">🗺️ KAART TONEN</button>
+        
         <div style="display:flex; gap:5px;">
             <input type="text" id="latitude" readonly placeholder="Lat" style="background:#eee;">
             <input type="text" id="longitude" readonly placeholder="Lon" style="background:#eee;">
         </div>
-        <input type="text" id="tagInput" placeholder="Gebiednaam...">
+        <input type="text" id="tagInput" placeholder="Gebiednaam (wordt automatisch gezocht)...">
 
         <label>Datum & Tijd</label>
         <input type="datetime-local" id="datetimeInput" required>
@@ -101,4 +106,3 @@
 <script src="app.js"></script>
 </body>
 </html>
-
