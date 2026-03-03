@@ -306,4 +306,59 @@ function verwijder(id) {
     }
 }
 
+async function haalDataUitSheet() {
+    if (!confirm("Wil je alle waarnemingen uit Google Sheets ophalen en samenvoegen?")) return;
+    
+    const btn = event.target;
+    btn.innerText = "LADEN... ⏳";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(GOOGLE_SCRIPT_URL);
+        const sheetData = await response.json();
+
+        // Omzetten van Sheet-formaat naar App-formaat
+        const nieuweWaarnemingen = sheetData.map(item => {
+            // Probeer coördinaten te herstellen als ze als tekst in de sheet staan
+            let coords = { lat: 52.1, lon: 5.2 };
+            try { 
+                if (item.coords) coords = JSON.parse(item.coords);
+            } catch(e) {
+                coords = { lat: parseFloat(item.latitude) || 52.1, lon: parseFloat(item.longitude) || 5.2 };
+            }
+
+            return {
+                id: item.id || Date.now() + Math.random(),
+                species: item.species || item.soort,
+                latin: item.latin || "",
+                status: item.status || "",
+                count: item.count || 1,
+                methode: item.methode || "",
+                tag: item.tag || "",
+                notes: item.notes || "",
+                coords: coords,
+                synced: true, // Het komt uit de sheet, dus het is al gesynct
+                timestamp: item.timestamp,
+                isoDate: item.isoDate || new Date().toISOString()
+            };
+        });
+
+        // Alleen vogels toevoegen die we nog niet hebben (op basis van ID)
+        const bestaandeIds = new Set(observations.map(o => String(o.id)));
+        const uniekeNieuweItems = nieuweWaarnemingen.filter(item => !bestaandeIds.has(String(item.id)));
+
+        observations = [...uniekeNieuweItems, ...observations];
+        localStorage.setItem('birdObs', JSON.stringify(observations));
+        renderObservations();
+
+        alert(`Klaar! ${uniekeNieuweItems.length} nieuwe waarnemingen opgehaald.`);
+    } catch (error) {
+        console.error("Fout bij ophalen:", error);
+        alert("Kon de data niet ophalen. Check of je WebApp URL klopt en 'Toegang voor iedereen' heeft.");
+    } finally {
+        btn.innerText = "HAAL UIT SHEET 📥";
+        btn.disabled = false;
+    }
+}
+
 init();
