@@ -3,17 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vogelspotter</title>
+    <title>Vogelspotter App V4</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icoon-512.png">
+    <link rel="apple-touch-icon" href="icoon-512.png">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="VogelApp">
-
-<link rel="icon" type="image/png" sizes="512x512" href="icoon-512.png">
-<link rel="apple-touch-icon" href="icoon-512.png">
     <style>
         :root { --primary: #2d5a27; --bg: #f4f7f4; --accent: #ffa000; }
         body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg); padding-bottom: 60px; }
@@ -22,8 +17,7 @@
         label { display: block; font-weight: bold; font-size: 0.7rem; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1rem; margin-bottom: 12px; }
         #mapPicker { height: 200px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 10px; }
-        .btn { border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; width: 100%; transition: 0.2s; }
-        .btn-save { background: var(--primary); font-size: 1.1rem; }
+        .btn { border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; width: 100%; font-size: 0.9rem; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
         .stat-item { background: #e8f5e9; padding: 8px 4px; border-radius: 8px; border: 1px solid #c8e6c9; }
         .stat-val { font-weight: bold; display: block; font-size: 1.2rem; color: var(--primary); }
@@ -31,14 +25,13 @@
         .filter-bar { display: flex; gap: 5px; margin-top: 10px; }
         .filter-btn { flex: 1; padding: 8px; font-size: 0.75rem; border-radius: 20px; border: 1px solid var(--primary); background: white; color: var(--primary); font-weight: bold; }
         .filter-btn.active { background: var(--primary); color: white; }
-        #mapContainer { display: none; margin-bottom: 10px; }
-        #obsList { margin-top: 10px; }
+        .card { background: white; padding: 12px; margin: 10px; border-radius: 10px; border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h3 style="margin:0;">🐦 Vogel Logboek</h3>
+    <h3 style="margin:0;">🐦 Vogel Logboek V4</h3>
 </div>
 
 <div class="section-card stats-grid">
@@ -50,65 +43,56 @@
 
 <div class="section-card">
     <form id="obsForm">
-        <input type="hidden" id="editId">
-        <input type="hidden" id="latinInput">
-        <input type="hidden" id="statusInput">
-        
-        <label>Vogelsoort</label>
-        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Typ vogelnaam..." required autocomplete="off">
+        <input type="hidden" id="editId"><input type="hidden" id="latinInput"><input type="hidden" id="statusInput">
+        <label>Soort</label>
+        <input type="text" id="speciesInput" list="vogelLijst" placeholder="Zoek soort..." required autocomplete="off">
         <datalist id="vogelLijst"></datalist>
-        <div id="speciesInfo" style="font-size:0.8rem; margin:-8px 0 12px 0; font-style:italic; color:var(--primary); min-height:1.1em;"></div>
+        <div id="speciesInfo" style="font-size:0.8rem; margin-top:-10px; margin-bottom:10px; color:var(--primary); font-style:italic;"></div>
 
         <div style="display:flex; gap:10px;">
             <div style="flex:1;"><label>Aantal</label><input type="number" id="countInput" value="1"></div>
             <div style="flex:1;">
-                <label>Waarneming</label>
-                <div style="display:flex; gap:10px; padding-top:10px; font-size:0.85rem;">
-                    <label style="text-transform:none;"><input type="checkbox" id="checkGezien" checked> Zien</label>
-                    <label style="text-transform:none;"><input type="checkbox" id="checkGehoord"> Horen</label>
+                <label>Type</label>
+                <div style="display:flex; gap:10px; padding-top:10px;">
+                    <label style="font-size:0.8rem;"><input type="checkbox" id="checkGezien" checked> Zien</label>
+                    <label style="font-size:0.8rem;"><input type="checkbox" id="checkGehoord"> Horen</label>
                 </div>
             </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <label>Locatie</label>
-            <button type="button" onclick="toggleKaart()" id="mapToggleBtn" style="font-size:0.6rem; padding:4px 8px;">🗺️ KAART TONEN</button>
-        </div>
-        
-        <div id="mapContainer"><div id="mapPicker"></div></div>
-        
+        <label>Locatie</label>
+        <div id="mapContainer" style="display:none;"><div id="mapPicker"></div></div>
+        <button type="button" onclick="toggleKaart()" id="mapToggleBtn" class="btn" style="background:#666; margin-bottom:10px;">🗺️ KAART TONEN</button>
         <div style="display:flex; gap:5px;">
-            <input type="text" id="latitude" readonly placeholder="Lat" style="background:#f5f5f5;">
-            <input type="text" id="longitude" readonly placeholder="Lon" style="background:#f5f5f5;">
+            <input type="text" id="latitude" readonly placeholder="Lat" style="background:#eee;">
+            <input type="text" id="longitude" readonly placeholder="Lon" style="background:#eee;">
         </div>
-        
-        <label>Locatietag / Gebied</label>
-        <input type="text" id="tagInput" placeholder="Bijv. Utrechtse Heuvelrug">
+        <input type="text" id="tagInput" placeholder="Gebiednaam...">
 
         <label>Datum & Tijd</label>
         <input type="datetime-local" id="datetimeInput" required>
 
         <label>Notities</label>
-        <textarea id="noteInput" placeholder="Extra opmerkingen..." rows="2"></textarea>
+        <textarea id="noteInput" rows="2"></textarea>
         
-        <button type="submit" id="saveBtn" class="btn btn-save">OPSLAAN 💾</button>
+        <button type="submit" id="saveBtn" class="btn" style="background:var(--primary); font-size:1.1rem;">OPSLAAN 💾</button>
     </form>
 </div>
 
 <div class="section-card">
-    <input type="text" id="searchInput" placeholder="Zoek op soort of gebied..." oninput="renderObservations()">
+    <input type="text" id="searchInput" placeholder="Zoek in waarnemingen..." oninput="renderObservations()">
     <div class="filter-bar">
         <button onclick="setFilter('vandaag')" class="filter-btn active" id="filter-vandaag">Vandaag</button>
         <button onclick="setFilter('alles')" class="filter-btn" id="filter-alles">Alles</button>
-        <button onclick="setFilter('pending')" class="filter-btn" id="filter-pending">Sync</button>
+        <button onclick="setFilter('pending')" class="filter-btn" id="filter-pending">Niet Gesynct</button>
     </div>
 </div>
 
-<div style="padding: 0 10px; display:flex; gap:8px;">
-    <button onclick="synchroniseerData()" class="btn" style="background:#2196F3; flex:2;">SYNC SHEET</button>
-    <button onclick="exportData()" class="btn" style="background:#666; flex:1;">EXP</button>
-    <button onclick="importData()" class="btn" style="background:#666; flex:1;">IMP</button>
-    <button onclick="haalDataUitSheet()" class="btn" style="background:#9c27b0; flex:2;">HAAL UIT SHEET 📥</button>
+<div style="padding: 0 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+    <button onclick="synchroniseerData()" class="btn" style="background:#2196F3;">SYNC NAAR SHEET 📤</button>
+    <button onclick="haalDataUitSheet()" class="btn" style="background:#9c27b0;">HAAL UIT SHEET 📥</button>
+    <button onclick="exportData()" class="btn" style="background:#666;">BACKUP (EXP)</button>
+    <button onclick="importData()" class="btn" style="background:#666;">HERSTEL (IMP)</button>
 </div>
 
 <div id="obsList"></div>
@@ -116,5 +100,3 @@
 <script src="app.js"></script>
 </body>
 </html>
-
-
