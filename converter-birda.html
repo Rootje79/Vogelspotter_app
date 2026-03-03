@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Birda naar App Converter</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: 0 auto; background: #f0f4f8; }
+        .box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid #3b82f6; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; font-family: 'Courier New', monospace; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; padding: 10px; box-sizing: border-box; }
+        button { background: #3b82f6; color: white; border: none; padding: 14px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #2563eb; }
+        .status-msg { padding: 12px; margin-bottom: 15px; border-radius: 6px; display: none; text-align: center; font-weight: bold; }
+        #log { font-size: 0.9rem; color: #555; margin-top: 15px; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+        h2 { color: #1e40af; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🐦 Birda App naar Vogelspotter</h2>
+    <p>Plak de inhoud van je Birda CSV-bestand (inclusief koptekst) hieronder.</p>
+    
+    <div id="status" class="status-msg"></div>
+
+    <textarea id="csvInput" placeholder="sightingId,date,longitude,latitude,scientificName,commonName..."></textarea>
+    
+    <button onclick="processBirdaData()">CONVERTEER BIRDA DATA 🚀</button>
+    <div id="log">Atlas wordt geladen uit soorten.json...</div>
+
+    <h3 style="margin-top:30px;">Resultaat voor Import:</h3>
+    <textarea id="jsonOutput" readonly placeholder="Het JSON resultaat verschijnt hier..."></textarea>
+    <button id="downloadBtn" style="display:none; background:#10b981;" onclick="downloadJson()">DOWNLOAD .JSON BESTAND</button>
+</div>
+
+<script>
+let vogelAtlas = [];
+
+// 1. Laad de atlas in
+async function initConverter() {
+    try {
+        const response = await fetch('soorten.json');
+        if (!response.ok) throw new Error('Kon soorten.json niet vinden');
+        vogelAtlas = await response.json();
+        document.getElementById('log').innerText = `✅ Atlas geladen: ${vogelAtlas.length} soorten beschikbaar.`;
+    } catch (err) {
+        document.getElementById('log').innerText = `⚠️ Let op: soorten.json niet gevonden. Status wordt 'Onbekend'.`;
+    }
+}
+
+// 2. CSV Parser
+function csvToJSON(csv) {
+    const lines = csv.trim().split('\n');
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+
+    return lines.slice(1).map(line => {
+        const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        const obj = {};
+        headers.forEach((header, i) => {
+            let val = values[i] ? values[i].replace(/"/g, '').trim() : "";
+            obj[header] = val;
+        });
+        return obj;
+    });
+}
+
+// 3. Verwerk de Birda data
+function processBirdaData() {
+    const csvContent = document.getElementById('csvInput').value;
+    if (!csvContent) return alert("Plak eerst de CSV data uit Birda!");
+
+    try {
+        const rawData = csvToJSON(csvContent);
+        
+        const convertedData = rawData.map(row => {
+            const soortNaam = row.commonName || "";
+            const latinNaam = row.scientificName || "";
+            const atlasInfo = vogelAtlas.find(v => v.naam.toLowerCase() === soortNaam.toLowerCase());
+            
+            // Datum van Birda naar ISO
+            let isoDate;
+            try {
+                isoDate = new Date(row.date).toISOString();
+            } catch(e) {
+                isoDate = new Date().toISOString();
+            }
+
+            // Notities verrijken met Birda info (Lifer / YearTick)
+            let extraNotes = row.note || "";
+            if (row.lifer === "true" || row.lifer === "1") extraNotes += " [LIFER!]";
+            if (row.yearTick === "true" || row.yearTick === "1") extraNotes += " [YEAR TICK]";
+
+            return {
+                id: "BIRDA-" + (row.sightingId || Date.now() + Math.floor(Math.random() * 1000)),
+                species: soortNaam,
+                latin: latinNaam || (atlasInfo ? atlasInfo.WetSchap : ""),
+                status: atlasInfo ? atlasInfo.status : "Onbekend",
+                count: parseInt(row.count) || 1,
+                methode: "Gezien", // Birda is primair gericht op zichtwaarnemingen
+                tag: row.sessionTitle || "Birda Import",
+                notes: extraNotes.trim(),
+                timestamp: new Date(isoDate).toLocaleString('nl-NL'),
+                isoDate: isoDate,
+                synced: true,
+                coords: {
+                    lat: parseFloat(row.latitude) || 52.1,
+                    lon: parseFloat(row.longitude) || 5.2
+                }
+            };
+        });
+
+        document.getElementById('jsonOutput').value = JSON.stringify(convertedData, null, 2);
+        document.getElementById('downloadBtn').style.display = "block";
+        showStatus(`Succes! ${convertedData.length} Birda waarnemingen omgezet.`, "green");
+
+    } catch (err) {
+        showStatus("Fout bij converteren: " + err.message, "red");
+    }
+}
+
+function showStatus(msg, color) {
+    const s = document.getElementById('status');
+    s.innerText = msg;
+    s.style.display = "block";
+    s.style.background = color === "green" ? "#d1fae5" : "#fee2e2";
+    s.style.color = color === "green" ? "#065f46" : "#991b1b";
+}
+
+function downloadJson() {
+    const data = document.getElementById('jsonOutput').value;
+    const blob = new Blob([data], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "birda_import.json";
+    a.click();
+}
+
+initConverter();
+</script>
+
+</body>
+</html>
