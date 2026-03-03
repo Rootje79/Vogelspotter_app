@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Birda naar Sheet Sync (Exact)</title>
+    <title>Birda naar Sheet Sync (Scientific Match)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f4f8; }
         .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -15,9 +15,9 @@
 <div class="box">
     <h2>🐦 Birda naar Sheet Sync</h2>
     <p>Plak de inhoud van je Birda CSV hieronder:</p>
-    <textarea id="csvInput" placeholder="sightingId,date,longitude,latitude..."></textarea>
-    <button onclick="convertBirda()">CONVERTEER VOOR SYNC 🚀</button>
-    <div id="log" class="log-box">Status: Wachten op Birda data...</div>
+    <textarea id="csvInput"></textarea>
+    <button onclick="convert()">CONVERTEER OP BASIS VAN LATIJN 🚀</button>
+    <div id="log" class="log-box">Status: Wachten op data...</div>
     <textarea id="jsonOutput" readonly style="height:150px;"></textarea>
     <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
 </div>
@@ -32,65 +32,69 @@ async function init() {
     } catch (e) { document.getElementById('log').innerHTML = "⚠️ Let op: soorten.json niet gevonden."; }
 }
 
-function toSheetDate(val) {
+function formatDate(val) {
     if (!val) return "";
     try {
-        const d = new Date(val); // Birda datumformaat: 2024-07-21T06:29:00.000Z
+        const d = new Date(val);
         if (isNaN(d.getTime())) return val;
         const p = (n) => n.toString().padStart(2, '0');
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     } catch (e) { return val; }
 }
 
-function convertBirda() {
+function convert() {
     const input = document.getElementById('csvInput').value.trim();
     const lines = input.split(/\r?\n/);
     if(lines.length < 2) return;
 
-    // Birda gebruikt komma's
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
     
-    // Exacte indexen uit jouw Birda-bestand:
-    const iId = headers.indexOf('sightingId');
+    const iId = headers.indexOf('sightingid');
     const iDate = headers.indexOf('date');
-    const iLon = headers.indexOf('longitude'); // Let op: Birda heeft Lon eerst
+    const iLon = headers.indexOf('longitude');
     const iLat = headers.indexOf('latitude');
-    const iSci = headers.indexOf('scientificName');
-    const iCommon = headers.indexOf('commonName');
+    const iSci = headers.indexOf('scientificname');
+    const iCommon = headers.indexOf('commonname');
     const iCount = headers.indexOf('count');
-    const iSession = headers.indexOf('sessionTitle');
+    const iSession = headers.indexOf('sessiontitle');
 
     const results = lines.slice(1).map((line, idx) => {
         if (!line.trim()) return null;
-        
-        // Split op komma, maar houd rekening met eventuele quotes
         const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
         
-        const sciName = cols[iSci] || "";
-        const match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === sciName.toLowerCase());
+        const csvSciName = cols[iSci] || "";
+        const csvCommonName = cols[iCommon] || "Onbekend";
+
+        // PRIORITEIT: Zoek in atlas op de wetenschappelijke naam (WetSchap)
+        let match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === csvSciName.toLowerCase());
+        
+        // FALLBACK: Als Latijn niet matcht, probeer Nederlandse naam
+        if (!match) {
+            match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === csvCommonName.toLowerCase());
+        }
 
         return {
             id: "BIRDA-" + (cols[iId] || idx),
-            species: match ? match.naam : (cols[iCommon] || "Onbekend"),
-            latin: sciName,
+            species: match ? match.naam : csvCommonName, // Gebruik NL naam uit atlas
+            latin: match ? match.WetSchap : csvSciName,  // Gebruik Latijn uit atlas
             status: match ? match.status : "Onbekend",
             count: parseInt(cols[iCount]) || 1,
             methode: "Gezien",
-            tag: cols[iSession] || "Birda Sessie", // Locatie uit sessionTitle in TAG
-            notes: "Birda Import",                // "Import" in NOTES
-            timestamp: toSheetDate(cols[iDate]),
+            tag: cols[iSession] || "Birda Locatie",
+            notes: "Birda Import",
+            timestamp: formatDate(cols[iDate]),
             isoDate: cols[iDate],
-            synced: false,                        // Zorgt dat de app gaat syncen
+            synced: false, 
             coords: { 
-                lat: Number(cols[iLat]),          // Pakt de exacte latitude
-                lon: Number(cols[iLon])           // Pakt de exacte longitude
+                lat: Number(cols[iLat]),
+                lon: Number(cols[iLon]) 
             }
         };
     }).filter(r => r !== null);
 
     document.getElementById('jsonOutput').value = JSON.stringify(results, null, 2);
     document.getElementById('downloadBtn').style.display = "block";
-    document.getElementById('log').innerHTML = `✅ ${results.length} Birda-regels verwerkt.<br>Kolom-check: Lon is index ${iLon}, Lat is index ${iLat}.`;
+    document.getElementById('log').innerHTML = `✅ ${results.length} regels verwerkt via Scientific Name matching.`;
 }
 
 function download() {
@@ -98,7 +102,7 @@ function download() {
     const blob = new Blob([data], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "birda_sync_data.json";
+    a.download = "birda_scientific_export.json";
     a.click();
 }
 init();
