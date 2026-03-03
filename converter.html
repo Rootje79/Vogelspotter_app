@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Waarneming.nl naar Sheet Sync (Exact Coords)</title>
+    <title>Waarneming.nl naar Sheet Sync</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f4f8; }
         .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -16,12 +16,12 @@
 <div class="box">
     <h2>🇳l Waarneming.nl -> Sheet Sync</h2>
     <div id="status"></div>
-    <p>Plak Waarneming.nl CSV (export):</p>
-    <textarea id="csvInput"></textarea>
+    <p>Plak de inhoud van je Waarneming.nl CSV hieronder:</p>
+    <textarea id="csvInput" placeholder="id,date,time,species name..."></textarea>
     <button onclick="convert()">CONVERTEER VOOR SYNC 🚀</button>
     <div id="log" class="log-box">Status: Wachten op data...</div>
-    <textarea id="jsonOutput" readonly style="height:100px;"></textarea>
-    <button id="downloadBtn" style="display:none; background:#10b981;" onclick="download()">DOWNLOAD JSON</button>
+    <textarea id="jsonOutput" readonly style="height:150px;"></textarea>
+    <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
 </div>
 
 <script>
@@ -30,19 +30,16 @@ async function init() {
     try {
         const res = await fetch('soorten.json');
         vogelAtlas = await res.json();
-        document.getElementById('log').innerHTML = "✅ Atlas geladen.";
+        document.getElementById('log').innerHTML = "✅ vogelatlas geladen.";
     } catch (e) { document.getElementById('log').innerHTML = "⚠️ Atlas niet gevonden."; }
 }
 
-function toSheetDate(val) {
-    if (!val) return "";
+function toSheetDate(dStr, tStr) {
+    if (!dStr) return "";
     try {
-        let d = new Date(val.split('-').reverse().join('/')); 
-        if(isNaN(d.getTime())) d = new Date(val); 
-        if (isNaN(d.getTime())) return val;
-        const p = (n) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`;
-    } catch (e) { return val; }
+        // Waarneming.nl heeft datum (YYYY-MM-DD) en tijd (HH:MM:SS) apart
+        return `${dStr} ${tStr || "12:00:00"}`;
+    } catch (e) { return dStr; }
 }
 
 function convert() {
@@ -50,37 +47,48 @@ function convert() {
     const lines = input.split(/\r?\n/);
     if(lines.length < 2) return;
 
-    const sep = lines[0].includes(';') ? ';' : ',';
-    const headers = lines[0].toLowerCase().replace(/[^\w,;]/g, '').split(sep).map(h => h.trim());
+    // In jouw bestand is het een komma
+    const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
     
-    const iSpecies = headers.findIndex(h => h.includes('soort') || h.includes('species'));
-    const iDate = headers.findIndex(h => h.includes('datum') || h.includes('date'));
-    const iLoc = headers.findIndex(h => h.includes('location') || h.includes('gebied') || h.includes('plaats'));
-    const iLat = headers.findIndex(h => h === 'lat' || h === 'latitude');
-    const iLon = headers.findIndex(h => h === 'lon' || h === 'longitude');
-    const iCount = headers.findIndex(h => h.includes('aantal') || h.includes('count'));
+    // Indexen op basis van jouw specifieke CSV
+    const iSpecies = headers.indexOf('species name');
+    const iSci = headers.indexOf('scientific name');
+    const iDate = headers.indexOf('date');
+    const iTime = headers.indexOf('time');
+    const iLoc = headers.indexOf('location');
+    const iLat = headers.indexOf('lat');
+    const iLon = headers.indexOf('lng'); // Waarneming gebruikt 'lng'
+    const iCount = headers.indexOf('number');
+    const iNotes = headers.indexOf('notes');
 
     const results = lines.slice(1).map((line, idx) => {
         if (!line.trim()) return null;
-        const cols = line.split(sep).map(c => c.trim().replace(/"/g, ''));
+        
+        // Split op komma, maar negeer komma's binnen quotes (voor locaties)
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
+        
         const soort = cols[iSpecies] || "Onbekend";
         const match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === soort.toLowerCase());
 
+        // Coördinaten direct ophalen als Number voor maximale precisie
+        const latVal = cols[iLat];
+        const lonVal = cols[iLon];
+
         return {
-            id: "WNL-" + idx + "-" + Math.floor(Math.random() * 1000),
+            id: "WNL-" + cols[0], // Gebruik het originele Waarneming ID
             species: soort,
-            latin: match ? match.WetSchap : "",
+            latin: cols[iSci] || (match ? match.WetSchap : ""),
             status: match ? match.status : "Onbekend",
             count: parseInt(cols[iCount]) || 1,
             methode: "Gezien",
-            tag: cols[iLoc] || "Waarneming Locatie",
-            notes: "Waarneming Import",
-            timestamp: toSheetDate(cols[iDate]),
+            tag: cols[iLoc] || "Waarneming", // Locatie in de TAG
+            notes: "Waarneming Import" + (cols[iNotes] ? ": " + cols[iNotes] : ""), // "Import" in de NOTES
+            timestamp: toSheetDate(cols[iDate], cols[iTime]),
             isoDate: cols[iDate],
             synced: false, 
             coords: { 
-                lat: Number(cols[iLat]), // Directe omzetting zonder afronding
-                lon: Number(cols[iLon]) 
+                lat: latVal ? Number(latVal) : 52.1, 
+                lon: lonVal ? Number(lonVal) : 5.2 
             }
         };
     }).filter(r => r !== null);
@@ -88,8 +96,8 @@ function convert() {
     document.getElementById('jsonOutput').value = JSON.stringify(results, null, 2);
     document.getElementById('downloadBtn').style.display = "block";
     document.getElementById('status').style.display = "block";
-    document.getElementById('status').innerText = results.length + " regels verwerkt.";
-    document.getElementById('log').innerHTML = "✅ Klaar. Coördinaten zijn exact overgenomen.";
+    document.getElementById('status').innerText = `✅ ${results.length} waarnemingen verwerkt!`;
+    document.getElementById('log').innerHTML = `✅ Kolommen herkend. Lat: ${iLat}, Lng: ${iLon}.`;
 }
 
 function download() {
@@ -97,7 +105,7 @@ function download() {
     const blob = new Blob([data], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "waarneming_sync.json";
+    a.download = "waarneming_sheet_ready.json";
     a.click();
 }
 init();
