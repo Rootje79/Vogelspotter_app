@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Birda Master Converter</title>
+    <title>Birda naar App & Sheet Converter</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f4f8; }
         .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -15,13 +15,13 @@
 <body>
 
 <div class="box">
-    <h2>🐦 Birda naar App Converter</h2>
+    <h2>🐦 Birda naar App & Sheet</h2>
     <div id="status"></div>
     
-    <p>Plak de volledige Birda CSV inhoud hieronder:</p>
+    <p>Plak de Birda CSV inhoud hieronder:</p>
     <textarea id="csvInput"></textarea>
     
-    <button onclick="convert()">CONVERTEER NU 🚀</button>
+    <button onclick="convert()">CONVERTEER VOOR SYNC 🚀</button>
 
     <div id="log" class="log-box">Status: Wachten op actie...</div>
 
@@ -33,7 +33,6 @@
 <script>
 let vogelAtlas = [];
 
-// 1. Laden soorten.json
 async function init() {
     const log = document.getElementById('log');
     try {
@@ -41,11 +40,11 @@ async function init() {
         vogelAtlas = await res.json();
         log.innerHTML = "✅ soorten.json geladen (" + vogelAtlas.length + " soorten)";
     } catch (e) {
-        log.innerHTML = "⚠️ Let op: soorten.json niet gevonden op de server.";
+        log.innerHTML = "⚠️ Let op: soorten.json niet gevonden.";
     }
 }
 
-// 2. Een zeer robuuste CSV naar Object functie (handelt quotes en enters af)
+// Robuuste CSV parser voor Birda exports
 function csvToArray(text) {
     let p = '', c = '', r = [], s = true, l = [''];
     for (let i = 0; i < text.length; i++) {
@@ -60,6 +59,18 @@ function csvToArray(text) {
     return r;
 }
 
+// Functie om datum exact Sheet-vriendelijk te maken
+function formatSheetDate(dateStr) {
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const pad = (num) => num.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    } catch (e) {
+        return dateStr;
+    }
+}
+
 function convert() {
     const input = document.getElementById('csvInput').value.trim();
     const log = document.getElementById('log');
@@ -69,7 +80,6 @@ function convert() {
         const rows = csvToArray(input);
         const headers = rows[0].map(h => h.trim());
         
-        // Zoek de juiste kolommen
         const iSci = headers.indexOf('scientificName');
         const iCommon = headers.indexOf('commonName');
         const iLat = headers.indexOf('latitude');
@@ -78,32 +88,26 @@ function convert() {
         const iCount = headers.indexOf('count');
         const iSession = headers.indexOf('sessionTitle');
 
-        const finalData = rows.slice(1).filter(r => r[iSci]).map((cols, idx) => {
-            const sciName = cols[iSci] ? cols[iSci].trim() : "";
+        const finalData = rows.slice(1).filter(r => r[iSci] && r[iSci].trim() !== "").map((cols, idx) => {
+            const sciName = cols[iSci].trim();
             const commonName = cols[iCommon] ? cols[iCommon].trim() : "Onbekend";
             
-            // ZOEK IN ATLAS: Match op WetSchap
             const match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === sciName.toLowerCase());
             
-            const finaleNaam = match ? match.naam : commonName;
-            const finaleStatus = match ? match.status : "Onbekend";
-
-            // Aantal fix
-            let aantal = parseInt(cols[iCount]);
-            if (isNaN(aantal)) aantal = 1;
+            const sheetDate = formatSheetDate(cols[iDate]);
 
             return {
-                id: "BIRDA-" + idx,
-                species: finaleNaam,
+                id: "BIRDA-" + (cols[0] || idx), // Gebruik Birda ID
+                species: match ? match.naam : commonName,
                 latin: sciName,
-                status: finaleStatus,
-                count: aantal,
+                status: match ? match.status : "Onbekend",
+                count: parseInt(cols[iCount]) || 1,
                 methode: "Gezien",
-                tag: (cols[iSession] && cols[iSession].trim()) ? cols[iSession] : "Birda Sessie",
+                tag: (cols[iSession] && cols[iSession].trim()) ? cols[iSession] : "Birda Import",
                 notes: "",
-                timestamp: new Date(cols[iDate]).toLocaleString('nl-NL'),
+                timestamp: sheetDate, // Geformatteerd voor Google Sheets
                 isoDate: cols[iDate],
-                synced: true,
+                synced: false, // Zet op false zodat de app weet dat hij nog naar Sheets moet!
                 coords: {
                     lat: parseFloat(cols[iLat]) || 52.1,
                     lon: parseFloat(cols[iLon]) || 5.2
@@ -115,8 +119,8 @@ function convert() {
         document.getElementById('downloadBtn').style.display = "block";
         document.getElementById('status').style.display = "block";
         document.getElementById('status').style.background = "#d1fae5";
-        document.getElementById('status').innerText = "Succes! " + finalData.length + " vogels verwerkt.";
-        log.innerHTML = "✅ Verwerking gelukt! Eerste vogel: " + finalData[0].species;
+        document.getElementById('status').innerText = `Succes! ${finalData.length} waarnemingen klaar voor import en sync.`;
+        log.innerHTML = "✅ Verwerking voltooid. Importeer dit bestand in de app en start daarna de sync.";
 
     } catch (err) {
         log.innerHTML = "❌ FOUT: " + err.message;
@@ -129,7 +133,7 @@ function download() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "birda_import.json";
+    a.download = "birda_voor_sheet_sync.json";
     a.click();
 }
 
