@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkADL8WhRJY2h8whFlDZQzWPVJj9UTpsxxTNYtkxYlLzVeVFoQDzAiNv9P9djijKVVrg/exec"; // VERVANG DEZE DOOR JE EIGEN URL!
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6lQ5-qAc32JAfd8xEyowRZBTfqThOgE03HrpmN4Fw1nAGYw3AFsH46d5yZuVr_YInBQ/exec"; // VERVANG DEZE DOOR JE EIGEN URL!
 
 let observations = JSON.parse(localStorage.getItem('birdObs')) || [];
 let vogelAtlas = [];
@@ -251,10 +251,24 @@ function importData() {
     input.click();
 }
 
-function verwijder(id) {
-    if(confirm("Verwijderen?")) {
+async function verwijder(id) {
+    if (confirm("Weet je zeker dat je deze waarneming overal wilt verwijderen? (Telefoon én Google Sheet)")) {
+        // 1. Verwijder uit lokaal geheugen
         observations = observations.filter(o => String(o.id) !== String(id));
         localStorage.setItem('birdObs', JSON.stringify(observations));
+        
+        // 2. Geef seintje aan de Google Sheet
+        try {
+            await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ action: "delete", id: id })
+            });
+            console.log("Verwijder-verzoek naar sheet gestuurd.");
+        } catch (e) {
+            console.error("Kon niet uit sheet verwijderen:", e);
+        }
+
         renderObservations();
     }
 }
