@@ -192,4 +192,84 @@ function bewerkWaarneming(id) {
     document.getElementById('statusInput').value = o.status || "";
     document.getElementById('speciesInfo').innerHTML = `<i>${o.latin || ''}</i> • <b>${o.status || ''}</b>`;
     
-    const d = o.isoDate ? new Date(o.isoDate) :
+    const d = o.isoDate ? new Date(o.isoDate) : parseOldTimestamp(o.timestamp);
+    document.getElementById('datetimeInput').value = getLocalISOString(d);
+
+    document.getElementById('saveBtn').innerText = "WIJZIGING OPSLAAN ✏️";
+    document.getElementById('saveBtn').style.background = "#ffa000";
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// DE VERBETERDE IMPORT
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = e => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                let json = JSON.parse(ev.target.result);
+                let data = Array.isArray(json) ? json : [json];
+                
+                const nieuweItems = data.map((item, index) => {
+                    let d = item.isoDate ? new Date(item.isoDate) : 
+                            (item.timestamp ? parseOldTimestamp(item.timestamp) : new Date());
+                    if (isNaN(d.getTime())) d = new Date();
+
+                    return {
+                        id: Date.now() + index + Math.floor(Math.random() * 1000),
+                        species: item.species || "Onbekend",
+                        latin: item.latin || "",
+                        status: item.status || "",
+                        count: item.count || 1,
+                        methode: item.methode || "Gezien",
+                        tag: item.tag || "Import",
+                        notes: item.notes || "",
+                        coords: item.coords || { lat: 52.1, lon: 5.2 },
+                        synced: false,
+                        timestamp: d.toLocaleString('nl-NL'),
+                        isoDate: d.toISOString()
+                    };
+                });
+
+                observations = [...nieuweItems, ...observations];
+                localStorage.setItem('birdObs', JSON.stringify(observations));
+                renderObservations();
+                alert(nieuweItems.length + " vogels toegevoegd!");
+            } catch (err) { alert("Fout bij laden bestand."); }
+        };
+        reader.readAsText(e.target.files[0]);
+    };
+    input.click();
+}
+
+async function synchroniseerData() {
+    const pending = observations.filter(o => !o.synced);
+    if(pending.length === 0) return alert("Alles is gesynct!");
+    for (let o of pending) {
+        try {
+            await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(o) });
+            o.synced = true;
+        } catch (e) {}
+    }
+    localStorage.setItem('birdObs', JSON.stringify(observations));
+    renderObservations();
+    alert("Sync voltooid!");
+}
+
+function exportData() {
+    const blob = new Blob([JSON.stringify(observations)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = "vogel_backup.json"; a.click();
+}
+
+function verwijder(id) {
+    if(confirm("Verwijderen?")) {
+        observations = observations.filter(o => o.id != id);
+        localStorage.setItem('birdObs', JSON.stringify(observations));
+        renderObservations();
+    }
+}
+
+init();
