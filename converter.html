@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Vogelspotter Data Converter (Waarneming.nl)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: 0 auto; background: #f4f7f4; }
+        .box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 200px; margin: 10px 0; font-family: 'Courier New', monospace; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; padding: 10px; box-sizing: border-box; }
+        button { background: #2d5a27; color: white; border: none; padding: 14px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #3d7a34; transform: translateY(-1px); }
+        .status-msg { padding: 12px; margin-bottom: 15px; border-radius: 6px; display: none; text-align: center; }
+        #log { font-size: 0.9rem; color: #555; margin-top: 15px; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+        h2 { color: #2d5a27; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🔄 Waarneming.nl Export naar App</h2>
+    <p>Plak de volledige inhoud van je CSV-bestand (inclusief de eerste rij met kolomnamen) hieronder.</p>
+    
+    <div id="status" class="status-msg"></div>
+
+    <textarea id="csvInput" placeholder="id,date,time,species name,scientific name..."></textarea>
+    
+    <button onclick="processData()">CONVERTEER NAAR APP-FORMAAT 🚀</button>
+    <div id="log">Atlas wordt geladen uit soorten.json...</div>
+
+    <h3 style="margin-top:30px;">Resultaat voor Import:</h3>
+    <textarea id="jsonOutput" readonly placeholder="Het resultaat verschijnt hier..."></textarea>
+    <button id="downloadBtn" style="display:none; background:#2196F3;" onclick="downloadJson()">DOWNLOAD .JSON BESTAND</button>
+</div>
+
+<script>
+let vogelAtlas = [];
+
+// 1. Laad de atlas in vanaf GitHub Pages
+async function initConverter() {
+    try {
+        const response = await fetch('soorten.json');
+        if (!response.ok) throw new Error('Kon soorten.json niet vinden');
+        vogelAtlas = await response.json();
+        document.getElementById('log').innerText = `✅ Atlas geladen: ${vogelAtlas.length} soorten beschikbaar voor status-check.`;
+    } catch (err) {
+        document.getElementById('log').innerText = `⚠️ Let op: soorten.json niet gevonden. Status wordt 'Onbekend'.`;
+    }
+}
+
+// 2. CSV Parser die rekening houdt met komma's binnen aanhalingstekens
+function csvToJSON(csv) {
+    const lines = csv.trim().split('\n');
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+
+    return lines.slice(1).map(line => {
+        const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        const obj = {};
+        headers.forEach((header, i) => {
+            let val = values[i] ? values[i].replace(/"/g, '').trim() : "";
+            obj[header] = val;
+        });
+        return obj;
+    });
+}
+
+// 3. Verwerk de data op basis van de doorgegeven kolomnamen
+function processData() {
+    const csvContent = document.getElementById('csvInput').value;
+    if (!csvContent) return alert("Plak eerst de CSV data!");
+
+    try {
+        const rawData = csvToJSON(csvContent);
+        
+        const convertedData = rawData.map(row => {
+            // Mapping op basis van jouw specifieke kolomnamen
+            const soortNaam = row["species name"] || "";
+            const latinNaamFromCSV = row["scientific name"] || "";
+            const aantal = row["number"] || "1";
+            const datum = row["date"] || "";
+            const tijd = row["time"] || "12:00";
+            const gebied = row["location"] || "Import";
+            const latRaw = row["lat"] || "52.1";
+            const lonRaw = row["lng"] || "5.2";
+            const opmerking = row["notes"] || "";
+
+            // Zoek status op in de lokale atlas (soorten.json)
+            const atlasInfo = vogelAtlas.find(v => v.naam.toLowerCase() === soortNaam.toLowerCase());
+
+            // ISO datum genereren
+            let isoDate;
+            try {
+                isoDate = new Date(datum + "T" + tijd).toISOString();
+            } catch(e) {
+                isoDate = new Date().toISOString();
+            }
+
+            return {
+                id: "ID-" + Date.now() + "-" + Math.floor(Math.random() * 1000000),
+                species: soortNaam,
+                // Behoud wetenschappelijke naam uit CSV, vul aan uit atlas indien leeg
+                latin: latinNaamFromCSV || (atlasInfo ? atlasInfo.WetSchap : ""),
+                // Status komt ALTIJD uit jouw soorten.json verrijking
+                status: atlasInfo ? atlasInfo.status : "Onbekend",
+                count: parseInt(aantal) || 1,
+                methode: "Geïmporteerd",
+                tag: gebied,
+                notes: opmerking,
+                timestamp: datum + " " + tijd,
+                isoDate: isoDate,
+                synced: true,
+                coords: {
+                    lat: parseFloat(String(latRaw).replace(',', '.')), 
+                    lon: parseFloat(String(lonRaw).replace(',', '.'))
+                }
+            };
+        });
+
+        document.getElementById('jsonOutput').value = JSON.stringify(convertedData, null, 2);
+        document.getElementById('downloadBtn').style.display = "block";
+        showStatus(`Succes! ${convertedData.length} waarnemingen succesvol verwerkt.`, "green");
+
+    } catch (err) {
+        showStatus("Fout bij converteren: " + err.message, "red");
+        console.error(err);
+    }
+}
+
+function showStatus(msg, color) {
+    const s = document.getElementById('status');
+    s.innerText = msg;
+    s.style.display = "block";
+    s.style.background = color === "green" ? "#e8f5e9" : "#ffebee";
+    s.style.color = color === "green" ? "#2d5a27" : "#c62828";
+    s.style.border = `1px solid ${color === "green" ? "#2d5a27" : "#c62828"}`;
+}
+
+function downloadJson() {
+    const data = document.getElementById('jsonOutput').value;
+    const blob = new Blob([data], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "waarnemingen_import_" + new Date().toISOString().split('T')[0] + ".json";
+    a.click();
+}
+
+initConverter();
+</script>
+
+</body>
+</html>
