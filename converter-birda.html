@@ -5,124 +5,111 @@
     <title>Birda naar Vogelspotter App</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f4f8; color: #333; }
-        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { color: #1e40af; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        textarea { width: 100%; height: 200px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
-        button { background: #3b82f6; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; transition: 0.2s; }
-        button:hover { background: #2563eb; }
-        #status { margin-top: 15px; padding: 12px; border-radius: 8px; display: none; text-align: center; font-weight: bold; }
-        .log-box { margin-top: 15px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.85rem; max-height: 120px; overflow-y: auto; color: #64748b; }
+        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 200px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #ddd; box-sizing: border-box; }
+        button { background: #1e40af; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 6px; display: none; text-align: center; }
+        .log-box { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; max-height: 200px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>🐦 Birda Export Converter</h2>
-    <p>Plak de inhoud van je Birda CSV-bestand hieronder (inclusief de kopregel).</p>
-    
+    <h2>🐦 Birda naar App Converter</h2>
     <div id="status"></div>
-
-    <textarea id="csvInput" placeholder="sightingId,date,longitude,latitude,scientificName..."></textarea>
     
-    <button onclick="convertBirda()">CONVERTEER NAAR NEDERLANDS 🚀</button>
+    <p>Plak hier de inhoud van je Birda CSV bestand:</p>
+    <textarea id="csvInput" placeholder="Plak de CSV inhoud hier..."></textarea>
+    
+    <button onclick="convert()">CONVERTEER NU 🚀</button>
 
-    <div id="log" class="log-box">Wachten op laden van soorten.json...</div>
+    <div id="log" class="log-box">Console: Wachten op actie...</div>
 
-    <h3 style="margin-top:25px;">Resultaat voor App Import:</h3>
-    <textarea id="jsonOutput" readonly placeholder="Het JSON resultaat verschijnt hier..."></textarea>
-    <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="downloadJson()">DOWNLOAD .JSON BESTAND</button>
+    <h3 style="margin-top:20px;">JSON voor Import:</h3>
+    <textarea id="jsonOutput" readonly></textarea>
+    <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="download()">DOWNLOAD .JSON</button>
 </div>
 
 <script>
 let vogelAtlas = [];
 
-// 1. Laad de atlas in vanaf GitHub
+// 1. Laden soorten.json
 async function init() {
+    const log = document.getElementById('log');
     try {
         const res = await fetch('soorten.json');
-        if (!res.ok) throw new Error();
         vogelAtlas = await res.json();
-        document.getElementById('log').innerText = `✅ Atlas geladen: ${vogelAtlas.length} soorten gevonden.`;
+        log.innerHTML = "✅ soorten.json geladen (" + vogelAtlas.length + " soorten)";
     } catch (e) {
-        document.getElementById('log').innerText = "⚠️ FOUT: soorten.json niet gevonden in deze map op GitHub.";
+        log.innerHTML = "⚠️ Let op: soorten.json niet gevonden. Check je GitHub.";
     }
 }
 
-// 2. De conversie functie
-function convertBirda() {
+// 2. CSV Parser die rekening houdt met lege velden en "PRESENT"
+function convert() {
     const input = document.getElementById('csvInput').value.trim();
-    if (!input) return alert("Plak eerst de CSV data!");
+    const log = document.getElementById('log');
+    if (!input) return;
 
-    const lines = input.split('\n');
-    const headers = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
+    const lines = input.split(/\r?\n/);
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     
-    // Bepaal de kolom-indexen op basis van de kopregel
-    const iSci = headers.indexOf('scientificname');
-    const iCommon = headers.indexOf('commonname');
+    const iSci = headers.indexOf('scientificName');
+    const iCommon = headers.indexOf('commonName');
     const iLat = headers.indexOf('latitude');
     const iLon = headers.indexOf('longitude');
     const iDate = headers.indexOf('date');
-    const iId = headers.indexOf('sightingid');
     const iCount = headers.indexOf('count');
+    const iSession = headers.indexOf('sessionTitle');
 
-    try {
-        const result = lines.slice(1).map((line, index) => {
-            // Regex om te splitten op komma's maar komma's binnen quotes te negeren (voor de 'note' kolom)
-            const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
-            
-            if (cols.length < 5) return null; // Sla lege regels over
-
-            const sciName = cols[iSci] || "";
-            
-            // ZOEKACTIE: Match op wetenschappelijke naam in de atlas
-            const match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === sciName.toLowerCase());
-
-            const finaleNaam = match ? match.naam : (cols[iCommon] || "Onbekend");
-            const finaleStatus = match ? match.status : "Onbekend";
-
-            // Birda datum naar leesbare tijd
-            const isoDate = cols[iDate] || new Date().toISOString();
-
-            return {
-                id: "BIRDA-" + (cols[iId] || index),
-                species: finaleNaam,
-                latin: sciName,
-                status: finaleStatus,
-                count: parseInt(cols[iCount]) || 1,
-                methode: "Gezien",
-                tag: "Birda Import",
-                notes: "", // Notities worden bewust leeg gelaten
-                timestamp: new Date(isoDate).toLocaleString('nl-NL'),
-                isoDate: isoDate,
-                synced: true,
-                coords: {
-                    lat: parseFloat(cols[iLat]) || 52.1,
-                    lon: parseFloat(cols[iLon]) || 5.2
-                }
-            };
-        }).filter(item => item !== null);
-
-        document.getElementById('jsonOutput').value = JSON.stringify(result, null, 2);
-        document.getElementById('downloadBtn').style.display = "block";
+    const result = lines.slice(1).map((line, idx) => {
+        // Splits regel, negeer komma's in aanhalingstekens (zoals in notes)
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
         
-        const s = document.getElementById('status');
-        s.style.display = "block";
-        s.style.background = "#d1fae5";
-        s.style.color = "#065f46";
-        s.innerText = `Succes! ${result.length} waarnemingen vertaald naar het Nederlands.`;
+        if (!cols[iSci]) return null; // Sla echt lege regels over
 
-    } catch (err) {
-        alert("Er ging iets mis bij het verwerken: " + err.message);
-    }
+        const sciName = cols[iSci];
+        const match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === sciName.toLowerCase());
+
+        // Aantal fix: Als leeg of "PRESENT", maak er 1 van
+        let aantal = parseInt(cols[iCount]);
+        if (isNaN(aantal)) aantal = 1;
+
+        return {
+            id: "BIRDA-" + idx + "-" + Math.floor(Math.random() * 1000),
+            species: match ? match.naam : cols[iCommon],
+            latin: sciName,
+            status: match ? match.status : "Onbekend",
+            count: aantal,
+            methode: "Gezien",
+            // Als sessionTitle leeg is, geef het een standaard naam
+            tag: cols[iSession] || "Birda Sessie",
+            notes: "", 
+            timestamp: new Date(cols[iDate]).toLocaleString('nl-NL'),
+            isoDate: cols[iDate],
+            synced: true,
+            coords: {
+                lat: parseFloat(cols[iLat]),
+                lon: parseFloat(cols[iLon])
+            }
+        };
+    }).filter(r => r !== null);
+
+    document.getElementById('jsonOutput').value = JSON.stringify(result, null, 2);
+    document.getElementById('downloadBtn').style.display = "block";
+    document.getElementById('status').style.display = "block";
+    document.getElementById('status').style.background = "#d1fae5";
+    document.getElementById('status').innerText = "Succes! " + result.length + " waarnemingen verwerkt.";
+    log.innerHTML = "✅ Verwerking voltooid.";
 }
 
-function downloadJson() {
-    const data = document.getElementById('jsonOutput').value;
-    const blob = new Blob([data], {type: "application/json"});
+function download() {
+    const content = document.getElementById('jsonOutput').value;
+    const blob = new Blob([content], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "birda_import.json";
+    a.download = "birda_export.json";
     a.click();
 }
 
