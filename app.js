@@ -96,41 +96,75 @@ document.getElementById('speciesInput').addEventListener('input', e => {
 // OPSLAAN EN WIJZIGEN
 document.getElementById('obsForm').addEventListener('submit', e => {
     e.preventDefault();
-    const editId = document.getElementById('editId').value;
-    const gekozenDatum = new Date(document.getElementById('datetimeInput').value);
     
-    const data = {
-        species: document.getElementById('speciesInput').value,
-        latin: document.getElementById('latinInput').value,
-        status: document.getElementById('statusInput').value,
-        count: document.getElementById('countInput').value,
-        methode: (document.getElementById('checkGezien').checked ? "Gezien" : "") + (document.getElementById('checkGehoord').checked ? " Gehoord" : ""),
-        tag: document.getElementById('tagInput').value,
-        notes: document.getElementById('noteInput').value,
-        coords: { lat: parseFloat(document.getElementById('latitude').value) || 52, lon: parseFloat(document.getElementById('longitude').value) || 5 },
-        synced: false,
-        timestamp: gekozenDatum.toLocaleString('nl-NL'),
-        isoDate: gekozenDatum.toISOString()
-    };
-
-    if (editId) {
-        const idx = observations.findIndex(o => o.id == editId);
-        if (idx !== -1) {
-            observations[idx] = { ...observations[idx], ...data, id: observations[idx].id };
+    try {
+        const editId = document.getElementById('editId').value;
+        const species = document.getElementById('speciesInput').value;
+        const latVal = document.getElementById('latitude').value;
+        const lonVal = document.getElementById('longitude').value;
+        
+        // Check of de vogelnaam wel is ingevuld
+        if (!species) {
+            alert("Vul aleeerst een vogelsoort in!");
+            return;
         }
+
+        const gekozenDatum = new Date(document.getElementById('datetimeInput').value);
+        
+        const data = {
+            species: species,
+            latin: document.getElementById('latinInput').value || "",
+            status: document.getElementById('statusInput').value || "",
+            count: document.getElementById('countInput').value || 1,
+            methode: (document.getElementById('checkGezien').checked ? "Gezien" : "") + (document.getElementById('checkGehoord').checked ? " Gehoord" : ""),
+            tag: document.getElementById('tagInput').value || "",
+            notes: document.getElementById('noteInput').value || "",
+            // Zorg dat coords altijd getallen zijn, zelfs als de kaart niet is gebruikt
+            coords: { 
+                lat: parseFloat(latVal) || 52.1326, 
+                lon: parseFloat(lonVal) || 5.2913 
+            },
+            synced: false,
+            timestamp: gekozenDatum.toLocaleString('nl-NL'),
+            isoDate: gekozenDatum.toISOString()
+        };
+
+        if (editId) {
+            // WIJZIGEN BESTAANDE VOGEL
+            const idx = observations.findIndex(o => o.id == editId);
+            if (idx !== -1) {
+                // We behouden het ID, de rest updaten we
+                observations[idx] = { ...observations[idx], ...data, id: observations[idx].id };
+                console.log("Item bijgewerkt:", editId);
+            }
+        } else {
+            // NIEUWE VOGEL TOEVOEGEN
+            data.id = Date.now() + Math.floor(Math.random() * 1000);
+            observations.unshift(data);
+            console.log("Nieuw item toegevoegd:", data.id);
+        }
+
+        // Opslaan in lokaal geheugen
+        localStorage.setItem('birdObs', JSON.stringify(observations));
+        
+        // Formulier resetten
+        e.target.reset();
         document.getElementById('editId').value = "";
         document.getElementById('saveBtn').innerText = "OPSLAAN 💾";
         document.getElementById('saveBtn').style.background = "#2d5a27";
-    } else {
-        data.id = Date.now() + Math.floor(Math.random() * 1000);
-        observations.unshift(data);
-    }
+        document.getElementById('datetimeInput').value = getLocalISOString(new Date());
+        document.getElementById('speciesInfo').innerText = "";
+        
+        // Lijst en tellers verversen
+        renderObservations();
+        
+        // Optioneel: scroll naar de lijst om te zien dat hij er staat
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 
-    localStorage.setItem('birdObs', JSON.stringify(observations));
-    e.target.reset();
-    document.getElementById('datetimeInput').value = getLocalISOString(new Date());
-    document.getElementById('speciesInfo').innerText = "";
-    renderObservations();
+    } catch (err) {
+        console.error("Opslaan mislukt:", err);
+        alert("Er ging iets mis bij het opslaan: " + err.message);
+    }
 });
 
 // DE TELLERS EN DE LIJST
