@@ -2,24 +2,24 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Birda Sync [BLAUW VERSIE]</title>
+    <title>Birda Sync [PAARS - CSV FIX]</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f9ff; }
-        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; border-top: 8px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        textarea { width: 100%; height: 180px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #bae6fd; box-sizing: border-box; }
-        button { background: #0284c7; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
-        #log { background: #082f49; color: #bae6fd; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; }
+        body { font-family: sans-serif; padding: 20px; background: #faf5ff; }
+        .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; border-top: 8px solid #a855f7; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 180px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #e9d5ff; box-sizing: border-box; }
+        button { background: #a855f7; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
+        #log { background: #3b0764; color: #f5f3ff; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 <div class="box">
-    <h2 style="color:#0284c7;">🔵 Birda naar Sheet Sync</h2>
-    <p>Versie: <strong>Scientific Match + Exact Coords</strong></p>
-    <textarea id="csvInput" placeholder="Plak Birda CSV..."></textarea>
-    <button onclick="convert()">CONVERTEER (BLAUW) 🚀</button>
+    <h2 style="color:#a855f7;">🟣 Birda naar Sheet Sync (V3)</h2>
+    <p>Status: <strong>CSV Parsing Fix + Latijn Match</strong></p>
+    <textarea id="csvInput" placeholder="Plak hier de Birda CSV data..."></textarea>
+    <button onclick="convert()">CONVERTEER (PAARS) 🚀</button>
     <div id="log">Status: Wachten op data...</div>
-    <textarea id="jsonOutput" readonly style="height:100px;"></textarea>
-    <button id="downloadBtn" style="display:none; background:#0369a1; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
+    <textarea id="jsonOutput" readonly style="height:150px;"></textarea>
+    <button id="downloadBtn" style="display:none; background:#7e22ce; margin-top:10px;" onclick="download()">DOWNLOAD JSON</button>
 </div>
 
 <script>
@@ -32,59 +32,83 @@ async function init() {
     } catch (e) { document.getElementById('log').innerHTML = "⚠️ Atlas niet gevonden."; }
 }
 
+// Functie om CSV regels correct te splitsen, ook met komma's in quotes
+function splitCSV(row) {
+    const result = [];
+    let cur = '', inQuote = false;
+    for (let char of row) {
+        if (char === '"') inQuote = !inQuote;
+        else if (char === ',' && !inQuote) {
+            result.push(cur.trim());
+            cur = '';
+        } else cur += char;
+    }
+    result.push(cur.trim());
+    return result;
+}
+
 function convert() {
     const input = document.getElementById('csvInput').value.trim();
     const lines = input.split(/\r?\n/);
     if(lines.length < 2) return;
-    const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+
+    const headers = splitCSV(lines[0]).map(h => h.toLowerCase());
     
     const iSci = headers.indexOf('scientificname');
     const iCommon = headers.indexOf('commonname');
     const iLat = headers.indexOf('latitude');
     const iLon = headers.indexOf('longitude');
     const iDate = headers.indexOf('date');
-    const iSession = headers.indexOf('sessiontitle');
+    const iSess = headers.indexOf('sessiontitle');
     const iCount = headers.indexOf('count');
 
     const results = lines.slice(1).map((line, idx) => {
         if (!line.trim()) return null;
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
+        const cols = splitCSV(line);
+        
         const csvSci = cols[iSci] || "";
         const csvCommon = cols[iCommon] || "Onbekend";
 
+        // Zoek in atlas op Latijn
         let match = vogelAtlas.find(v => v.WetSchap && v.WetSchap.toLowerCase() === csvSci.toLowerCase());
-        if (!match) match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === csvCommon.toLowerCase());
-
+        
         const d = new Date(cols[iDate]);
         const p = (n) => n.toString().padStart(2, '0');
         const ts = isNaN(d.getTime()) ? cols[iDate] : `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`;
 
         return {
-            id: "BIRDA-" + cols[0],
+            id: "BIRDA-" + (cols[0].substring(0,8) || idx),
             species: match ? match.naam : csvCommon,
             latin: match ? match.WetSchap : csvSci,
             status: match ? match.status : "Onbekend",
             count: parseInt(cols[iCount]) || 1,
             methode: "Gezien",
-            tag: cols[iSession] || "Birda Sessie",
+            tag: cols[iSess] || "Birda Locatie",
             notes: "Birda Import",
             timestamp: ts,
             isoDate: cols[iDate],
             synced: false,
-            coords: { lat: Number(cols[iLat]), lon: Number(cols[iLon]) }
+            coords: { 
+                lat: cols[iLat] ? Number(cols[iLat]) : null, 
+                lon: cols[iLon] ? Number(cols[iLon]) : null 
+            }
         };
     }).filter(r => r !== null);
 
     document.getElementById('jsonOutput').value = JSON.stringify(results, null, 2);
     document.getElementById('downloadBtn').style.display = "block";
-    document.getElementById('log').innerHTML = `✅ ${results.length} regels verwerkt via Latijnse match.`;
+    
+    if(results.length > 0) {
+        document.getElementById('log').innerHTML = `✅ Succes! ${results.length} regels verwerkt.\nEerste match: ${results[0].species} (${results[0].latin})\nCoords: ${results[0].coords.lat}, ${results[0].coords.lon}`;
+    }
 }
+
 function download() {
     const data = document.getElementById('jsonOutput').value;
     const blob = new Blob([data], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "birda_blauw.json";
+    a.download = "birda_paars_fix.json";
     a.click();
 }
 init();
