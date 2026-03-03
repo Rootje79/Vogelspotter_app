@@ -2,116 +2,143 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <title>Waarneming.nl naar App & Sheet</title>
+    <title>Waarneming.nl Converter (Sheet Sync)</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f0f4f8; }
         .box { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         textarea { width: 100%; height: 200px; margin: 15px 0; font-family: monospace; font-size: 12px; padding: 10px; border: 2px solid #ddd; box-sizing: border-box; }
-        button { background: #1e40af; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 6px; display: none; text-align: center; }
-        .log-box { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto; }
+        button { background: #047857; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; }
+        button:hover { background: #065f46; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 6px; display: none; text-align: center; font-weight: bold; }
+        .log-box { background: #1e293b; color: #fbbf24; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; font-size: 11px; max-height: 200px; overflow-y: auto; }
+        .error-msg { color: #ef4444; border: 1px solid #ef4444; padding: 10px; margin-top: 10px; border-radius: 5px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>🇳l Waarneming.nl naar App & Sheet</h2>
+    <h2>🇳l Waarneming.nl naar App & Sheet Sync</h2>
     <div id="status"></div>
+    <div id="error" class="error-msg"></div>
     
-    <p>Plak de Waarneming.nl CSV inhoud hieronder:</p>
-    <textarea id="csvInput" placeholder="ID,Datum,Soort..."></textarea>
+    <p>Plak hier de inhoud van je Waarneming.nl CSV bestand:</p>
+    <textarea id="csvInput" placeholder="ID,Datum,Soortnaam,Aantal..."></textarea>
     
-    <button onclick="convert()">CONVERTEER VOOR SYNC 🚀</button>
+    <button onclick="convertWaarneming()">CONVERTEER VOOR SYNC 🚀</button>
 
-    <div id="log" class="log-box">Status: Wachten op actie...</div>
+    <div id="log" class="log-box">Status: Wachten op invoer...</div>
 
-    <h3 style="margin-top:20px;">JSON voor Import:</h3>
+    <h3 style="margin-top:20px;">JSON resultaat:</h3>
     <textarea id="jsonOutput" readonly></textarea>
-    <button id="downloadBtn" style="display:none; background:#10b981; margin-top:10px;" onclick="download()">DOWNLOAD .JSON</button>
+    <button id="downloadBtn" style="display:none; background:#3b82f6; margin-top:10px;" onclick="download()">DOWNLOAD .JSON VOOR APP</button>
 </div>
 
 <script>
 let vogelAtlas = [];
 
+// 1. Laden van atlas
 async function init() {
     const log = document.getElementById('log');
     try {
         const res = await fetch('soorten.json');
+        if (!res.ok) throw new Error("Kan soorten.json niet vinden op de server.");
         vogelAtlas = await res.json();
-        log.innerHTML = "✅ soorten.json geladen.";
+        log.innerHTML = "✅ soorten.json geladen (" + vogelAtlas.length + " soorten).";
     } catch (e) {
-        log.innerHTML = "⚠️ Let op: soorten.json niet gevonden.";
+        log.innerHTML = "⚠️ Fout: soorten.json niet gevonden. Vertaling naar Latijn werkt mogelijk niet.";
     }
 }
 
-// Datum converter voor Google Sheets (YYYY-MM-DD HH:mm:ss)
-function formatSheetDate(dateStr) {
+// 2. Datum formatteren voor Google Sheets
+function toSheetDate(val) {
+    if (!val) return "";
     try {
-        // Waarneming.nl datums zijn vaak "YYYY-MM-DD" of "DD-MM-YYYY"
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return dateStr;
-        const pad = (num) => num.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    } catch (e) {
-        return dateStr;
-    }
+        const d = new Date(val.replace(/-/g, "/"));
+        if (isNaN(d.getTime())) return val;
+        const p = (n) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    } catch (e) { return val; }
 }
 
-function convert() {
+function convertWaarneming() {
     const input = document.getElementById('csvInput').value.trim();
-    if (!input) return;
-
-    const lines = input.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const log = document.getElementById('log');
+    const errBox = document.getElementById('error');
     
-    // Indexen zoeken (Waarneming.nl namen)
-    const iSpecies = headers.indexOf('species_name') !== -1 ? headers.indexOf('species_name') : headers.indexOf('soort_naam');
-    const iDate = headers.indexOf('date') !== -1 ? headers.indexOf('date') : headers.indexOf('datum');
-    const iLat = headers.indexOf('lat');
-    const iLon = headers.indexOf('lon');
-    const iCount = headers.indexOf('count') !== -1 ? headers.indexOf('count') : headers.indexOf('aantal');
-    const iMethod = headers.indexOf('method') !== -1 ? headers.indexOf('method') : headers.indexOf('methode');
+    errBox.style.display = "none";
+    if (!input) {
+        alert("Plak eerst data in het tekstvak.");
+        return;
+    }
 
-    const result = lines.slice(1).map((line, idx) => {
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
-        if (cols.length < 3) return null;
+    try {
+        const lines = input.split(/\r?\n/);
+        const sep = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].toLowerCase().replace(/[^\x20-\x7E]/g, "").split(sep).map(h => h.trim());
 
-        const soortNaam = cols[iSpecies];
-        const match = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === soortNaam.toLowerCase());
+        log.innerHTML = "Scheidingsteken: " + (sep === ';' ? 'Puntkomma' : 'Komma') + "<br>";
+        log.innerHTML += "Gevonden kolommen: " + headers.join(', ') + "<br>";
 
-        return {
-            id: "WNL-" + (cols[0] || idx),
-            species: soortNaam,
-            latin: match ? match.WetSchap : "",
-            status: match ? match.status : "Onbekend",
-            count: parseInt(cols[iCount]) || 1,
-            methode: cols[iMethod] || "Gezien",
-            tag: "Waarneming Import",
-            notes: "",
-            timestamp: formatSheetDate(cols[iDate]), // SHEET-SAFE DATUM
-            isoDate: cols[iDate],
-            synced: false, // FORCEER SYNC NAAR GOOGLE SHEETS
-            coords: {
-                lat: parseFloat(cols[iLat]) || 52.1,
-                lon: parseFloat(cols[iLon]) || 5.2
-            }
-        };
-    }).filter(r => r !== null);
+        // Zoek kolommen op basis van trefwoorden
+        const iSpecies = headers.findIndex(h => h.includes('soort') || h.includes('species'));
+        const iDate = headers.findIndex(h => h.includes('datum') || h.includes('date'));
+        const iCount = headers.findIndex(h => h.includes('aantal') || h.includes('count'));
+        const iLat = headers.findIndex(h => h === 'lat' || h.includes('latitude'));
+        const iLon = headers.findIndex(h => h === 'lon' || h.includes('longitude'));
 
-    document.getElementById('jsonOutput').value = JSON.stringify(result, null, 2);
-    document.getElementById('downloadBtn').style.display = "block";
-    document.getElementById('status').style.display = "block";
-    document.getElementById('status').style.background = "#d1fae5";
-    document.getElementById('status').innerText = `Klaar! ${result.length} regels voorbereid voor de Sheet Sync.`;
+        if (iSpecies === -1 || iDate === -1) {
+            throw new Error("Kolom 'Soort' of 'Datum' niet gevonden. Check de kopregel.");
+        }
+
+        const finalData = lines.slice(1).map((line, idx) => {
+            if (!line.trim()) return null;
+            const cols = line.split(sep).map(c => c.trim().replace(/"/g, ''));
+            
+            const soort = cols[iSpecies];
+            const atlasMatch = vogelAtlas.find(v => v.naam && v.naam.toLowerCase() === soort.toLowerCase());
+
+            return {
+                id: "WNL-" + (cols[0] || idx),
+                species: soort,
+                latin: atlasMatch ? atlasMatch.WetSchap : "",
+                status: atlasMatch ? atlasMatch.status : "Onbekend",
+                count: parseInt(cols[iCount]) || 1,
+                methode: "Gezien",
+                tag: "Waarneming Import",
+                notes: "",
+                timestamp: toSheetDate(cols[iDate]),
+                isoDate: cols[iDate],
+                synced: false, // Forceert upload naar Google Sheet
+                coords: {
+                    lat: parseFloat(cols[iLat]) || 52.1,
+                    lon: parseFloat(cols[iLon]) || 5.2
+                }
+            };
+        }).filter(r => r !== null);
+
+        if (finalData.length === 0) throw new Error("Geen gegevens kunnen verwerken.");
+
+        document.getElementById('jsonOutput').value = JSON.stringify(finalData, null, 2);
+        document.getElementById('downloadBtn').style.display = "block";
+        document.getElementById('status').style.display = "block";
+        document.getElementById('status').style.background = "#dcfce7";
+        document.getElementById('status').innerText = `✅ Gelukt! ${finalData.length} vogels klaar voor sync.`;
+        log.innerHTML += "✅ Conversie voltooid.";
+
+    } catch (err) {
+        errBox.innerText = "Fout: " + err.message;
+        errBox.style.display = "block";
+        log.innerHTML += "❌ Fout opgetreden.";
+    }
 }
 
 function download() {
-    const content = document.getElementById('jsonOutput').value;
-    const blob = new Blob([content], {type: 'application/json'});
+    const data = document.getElementById('jsonOutput').value;
+    const blob = new Blob([data], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "waarneming_voor_sync.json";
+    a.download = "waarneming_voor_sheet.json";
     a.click();
 }
 
