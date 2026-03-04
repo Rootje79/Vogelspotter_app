@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Uitgebreide Atlas Maker</title>
+    <style>
+        body { font-family: sans-serif; padding: 30px; background: #f0fdf4; text-align: center; }
+        .box { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 8px solid #16a34a; }
+        button { background: #16a34a; color: white; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Rich Data Atlas Generator</h2>
+        <p>Maakt een JSON met: Naam, Latijn, Type, Zeldzaamheid en Status.</p>
+        <button onclick="generate()">GENEREER SOORTEN.JSON 🚀</button>
+        <p id="status"></p>
+    </div>
+
+<script>
+async function generate() {
+    const status = document.getElementById('status');
+    status.innerText = "Bestand inlezen...";
+    try {
+        const res = await fetch('observation-2026-03-04-11-13-soort Vogels op Waarneming.nl.csv');
+        const csvText = await res.text();
+        const lines = csvText.split(/\r?\n/);
+        
+        const jsonAtlas = lines.slice(1).map(line => {
+            // CSV parser die rekening houdt met komma's in quotes
+            const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/"/g, ''));
+            if (cols.length < 10) return null;
+            
+            return {
+                naam: cols[1],          // name
+                WetSchap: cols[2],      // scientific name
+                type: cols[3],          // type
+                zeldzaamheid: cols[8],  // rarity
+                status: cols[9]         // status
+            };
+        }).filter(v => v !== null && v.naam);
+
+        const blob = new Blob([JSON.stringify(jsonAtlas, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "soorten.json";
+        a.click();
+        status.innerText = "✅ Gelukt! Vervang soorten.json op GitHub.";
+    } catch (e) {
+        status.innerText = "❌ Fout: CSV niet gevonden.";
+    }
+}
+</script>
+</body>
+</html>
